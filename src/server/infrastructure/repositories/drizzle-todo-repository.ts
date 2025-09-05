@@ -1,22 +1,20 @@
 /**
- * MongoDB Todo Repository - Entity-Based Architecture
+ * Drizzle Todo Repository - Entity-Based Architecture
  * 
  * This implementation follows the definitive repository design rules:
  * 1. Repository methods accept clear entity subset types (not unknown)
  * 2. Validation happens inside repository using Zod schemas
  * 3. Schema output must match input type exactly using matches<T>()
- * 4. ObjectId conversion handled in schemas or parseObjectId() method
- * 5. Explicit MongoDB operations, no buildMongoUpdate
+ * 4. UUID validation handled in schemas and base repository
+ * 5. Explicit Drizzle operations with type-safe queries
  * 6. Consistent naming convention
  */
 
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
-import type { DbTodoEntity } from '~/server/infrastructure/entities';
-import type { RepositoryContext } from '~/server/lib/constants';
-import { isValidObjectId } from '~/server/lib/constants';
-import { ObjectId, type Db } from 'mongodb';
-import { BaseMongoRepository } from './base-mongo-repository';
+import { eq, and, desc, asc, count } from 'drizzle-orm';
+import { BaseDrizzleRepository } from './base-drizzle-repository';
+import { todos } from '~/server/infrastructure/db/schema';
 import * as Err from '~/server/lib/errors/domain-errors';
 
 // Import validation schemas
@@ -38,27 +36,9 @@ import type {
   TodoFilterQuery,
 } from '~/server/domain/repositories/types/todo-repository-types';
 
-// Define local filter and options interfaces to avoid any types
-interface TodoMongoFilter {
-  userId?: ObjectId;
-  completed?: boolean;
-  deletedAt?: { $exists: boolean };
-  title?: { $regex: string; $options: string };
-}
-
-interface TodoQueryOptions {
-  sort?: Record<string, 1 | -1>;
-  skip?: number;
-  limit?: number;
-}
-
-export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> implements ITodoRepository {
-  constructor(private appContext: AppContext, db: Db) {
-    super(db, 'todos', {
-      monguardOptions: {
-        enableAuditLogging: true,
-      },
-    });
+export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implements ITodoRepository {
+  constructor(private appContext: AppContext) {
+    super('todos');
   }
 
   protected getLogger() {
@@ -66,60 +46,51 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
   }
 
   /**
-   * Centralized ObjectId parsing with validation
-   * Provides consistent error handling across all repository methods
-   */
-  private parseObjectId(id: string): ObjectId {
-    if (!isValidObjectId(id)) {
-      throw new Err.ValidationError(`Invalid ObjectId format: ${id}. Expected 24-character hex string.`, {
-        objectId: id,
-        expectedFormat: '24-character hex string'
-      });
-    }
-    return new ObjectId(id);
-  }
-
-  /**
    * Convert database entity to domain model
    */
-  private toDomainTodo(dbTodo: DbTodoEntity): Todo {
+  private toDomainTodo(dbTodo: typeof todos.$inferSelect): Todo {
     return {
-      id: dbTodo._id.toString() ?? '',
+      id: dbTodo.id,
       title: dbTodo.title,
       description: dbTodo.description,
       completed: dbTodo.completed,
-      userId: (dbTodo.userId)?.toString() ?? '',
+      userId: dbTodo.userId,
       createdAt: dbTodo.createdAt,
       updatedAt: dbTodo.updatedAt,
     };
   }
 
-  async create(input: TodoCreateRequest, context: RepositoryContext): Promise<Todo> {
+  async create(input: TodoCreateRequest): Promise<Todo> {
     try {
       this.appContext.logger.info('Creating todo in repository', {
         title: input.title,
         userId: input.userId,
         operation: 'create',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
 
       // Validation happens here in repository
       const validatedData = RepoTodoCreateSchema.parse(input);
 
-      const newTodo: Omit<DbTodoEntity, '_id' | 'createdAt' | 'updatedAt' | 'deletedAt'> = {
+      const newTodo = {
         title: validatedData.title,
         description: validatedData.description,
         completed: false,
         userId: validatedData.userId,
       };
 
-      const createdTodo = await this.collection.create(
-        newTodo,
-        { userContext: this.resolveUserContext(context) }
-      );
+      // Ensure database is initialized
+      const db = await this.ensureDatabase();
+
+      const createdTodos = await db.insert(todos).values(newTodo).returning();
+      const createdTodo = createdTodos[0];
+
+      if (!createdTodo) {
+        throw new Err.DatabaseError('Failed to create todo - no data returned');
+      }
 
       this.appContext.logger.info('Todo created successfully in repository', {
-        todoId: (createdTodo._id as ObjectId).toString(),
+        todoId: createdTodo.id,
         title: validatedData.title,
         operation: 'create'
       });
@@ -130,7 +101,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         error: error instanceof Error ? error.message : 'Unknown error',
         userId: input.userId,
         operation: 'create',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
@@ -142,17 +113,24 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'findById',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
 
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      const db = await this.ensureDatabase();
 
-      // Use findById for direct ID lookup and then verify ownership
-      const todo = await this.collection.findById(todoObjectId);
+      // Find todo by ID and user ID
+      const todo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
       
-      // Check if todo exists, belongs to user, and is not deleted
-      if (!todo || !todo.userId.equals(userObjectId) || todo.deletedAt) {
+      if (todo.length === 0) {
         this.appContext.logger.info('Todo not found or not accessible', {
           todoId: id,
           userId,
@@ -161,42 +139,50 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         return null;
       }
 
-      return this.toDomainTodo(todo);
+      return this.toDomainTodo(todo[0]);
     } catch (error) {
       this.appContext.logger.error('Failed to find todo by ID', {
         error: error instanceof Error ? error.message : 'Unknown error',
         todoId: id,
         userId,
         operation: 'findById',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
   }
 
-  async delete(id: string, userId: string, context: RepositoryContext): Promise<void> {
+  async delete(id: string, userId: string): Promise<void> {
     try {
       this.appContext.logger.info('Deleting todo', {
         todoId: id,
         userId,
         operation: 'delete',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
 
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      const db = await this.ensureDatabase();
 
       // First verify the todo exists and belongs to user
-      const existingTodo = await this.collection.findById(todoObjectId);
-      if (!existingTodo || !existingTodo.userId.equals(userObjectId) || existingTodo.deletedAt) {
+      const existingTodo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingTodo.length === 0) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      // Use soft delete via Monguard
-      await this.collection.deleteById(
-        todoObjectId, 
-        { userContext: this.resolveUserContext(context) }
-      );
+      // Perform hard delete
+      await db
+        .delete(todos)
+        .where(eq(todos.id, id));
 
       this.appContext.logger.info('Todo deleted successfully', {
         todoId: id,
@@ -209,33 +195,42 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'delete',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
   }
 
-  async updateContent(id: string, input: TodoContentPartialUpdate, userId: string, context: RepositoryContext): Promise<void> {
+  async updateContent(id: string, input: TodoContentPartialUpdate, userId: string): Promise<void> {
     try {
       const validatedData = RepoTodoContentUpdateSchema.parse(input);
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      
+      const db = await this.ensureDatabase();
 
       // First verify the todo exists and belongs to user
-      const existingTodo = await this.collection.findById(todoObjectId);
-      if (!existingTodo || !existingTodo.userId.equals(userObjectId) || existingTodo.deletedAt) {
+      const existingTodo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingTodo.length === 0) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      const updateDoc: Partial<DbTodoEntity> = {};
-      if (validatedData.title !== undefined) updateDoc.title = validatedData.title;
-      if (validatedData.description !== undefined) updateDoc.description = validatedData.description;
+      const updateFields: any = {};
+      if (validatedData.title !== undefined) updateFields.title = validatedData.title;
+      if (validatedData.description !== undefined) updateFields.description = validatedData.description;
 
-      await this.collection.updateById(
-        todoObjectId,
-        { $set: updateDoc },
-        { userContext: this.resolveUserContext(context) }
-      );
+      await db
+        .update(todos)
+        .set(updateFields)
+        .where(eq(todos.id, id));
 
       this.appContext.logger.info('Todo content updated successfully', {
         todoId: id,
@@ -248,29 +243,40 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'updateContent',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
   }
 
-  async updateStatus(id: string, input: TodoStatusUpdate, userId: string, context: RepositoryContext): Promise<void> {
+  async updateStatus(id: string, input: TodoStatusUpdate, userId: string): Promise<void> {
     try {
       const validatedData = RepoTodoStatusUpdateSchema.parse(input);
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      
+      const db = await this.ensureDatabase();
 
       // First verify the todo exists and belongs to user
-      const existingTodo = await this.collection.findById(todoObjectId);
-      if (!existingTodo || !existingTodo.userId.equals(userObjectId) || existingTodo.deletedAt) {
+      const existingTodo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingTodo.length === 0) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      await this.collection.updateById(
-        todoObjectId,
-        { $set: { completed: validatedData.completed } },
-        { userContext: this.resolveUserContext(context) }
-      );
+      const updateFields = { completed: validatedData.completed };
+
+      await db
+        .update(todos)
+        .set(updateFields)
+        .where(eq(todos.id, id));
 
       this.appContext.logger.info('Todo status updated successfully', {
         todoId: id,
@@ -284,29 +290,40 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'updateStatus',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
   }
 
-  async updateTitle(id: string, input: TodoTitleUpdate, userId: string, context: RepositoryContext): Promise<void> {
+  async updateTitle(id: string, input: TodoTitleUpdate, userId: string): Promise<void> {
     try {
       const validatedData = RepoTodoTitleUpdateSchema.parse(input);
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      
+      const db = await this.ensureDatabase();
 
       // First verify the todo exists and belongs to user
-      const existingTodo = await this.collection.findById(todoObjectId);
-      if (!existingTodo || !existingTodo.userId.equals(userObjectId) || existingTodo.deletedAt) {
+      const existingTodo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingTodo.length === 0) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      await this.collection.updateById(
-        todoObjectId,
-        { $set: { title: validatedData.title } },
-        { userContext: this.resolveUserContext(context) }
-      );
+      const updateFields = { title: validatedData.title };
+
+      await db
+        .update(todos)
+        .set(updateFields)
+        .where(eq(todos.id, id));
 
       this.appContext.logger.info('Todo title updated successfully', {
         todoId: id,
@@ -319,29 +336,40 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'updateTitle',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
   }
 
-  async updateDescription(id: string, input: TodoDescriptionUpdate, userId: string, context: RepositoryContext): Promise<void> {
+  async updateDescription(id: string, input: TodoDescriptionUpdate, userId: string): Promise<void> {
     try {
       const validatedData = RepoTodoDescriptionUpdateSchema.parse(input);
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      
+      const db = await this.ensureDatabase();
 
       // First verify the todo exists and belongs to user
-      const existingTodo = await this.collection.findById(todoObjectId);
-      if (!existingTodo || !existingTodo.userId.equals(userObjectId) || existingTodo.deletedAt) {
+      const existingTodo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingTodo.length === 0) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      await this.collection.updateById(
-        todoObjectId,
-        { $set: { description: validatedData.description } },
-        { userContext: this.resolveUserContext(context) }
-      );
+      const updateFields = { description: validatedData.description };
+
+      await db
+        .update(todos)
+        .set(updateFields)
+        .where(eq(todos.id, id));
 
       this.appContext.logger.info('Todo description updated successfully', {
         todoId: id,
@@ -354,35 +382,44 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'updateDescription',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
   }
 
-  async toggleCompletion(id: string, userId: string, context: RepositoryContext): Promise<Todo> {
+  async toggleCompletion(id: string, userId: string): Promise<Todo> {
     try {
-      const todoObjectId = this.parseObjectId(id);
-      const userObjectId = this.parseObjectId(userId);
+      const db = await this.ensureDatabase();
 
       // First, get the current todo to know its status
-      const currentTodo = await this.collection.findById(todoObjectId);
-      if (!currentTodo || !currentTodo.userId.equals(userObjectId) || currentTodo.deletedAt) {
+      const currentTodo = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.id, id),
+            eq(todos.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (currentTodo.length === 0) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      const newCompletedStatus = !currentTodo.completed;
+      const newCompletedStatus = !currentTodo[0].completed;
+      const updateFields = { completed: newCompletedStatus };
 
-      await this.collection.updateById(
-        todoObjectId,
-        { $set: { completed: newCompletedStatus } },
-        { userContext: this.resolveUserContext(context) }
-      );
+      const updatedTodos = await db
+        .update(todos)
+        .set(updateFields)
+        .where(eq(todos.id, id))
+        .returning();
 
-      // Return the updated todo
-      const updatedTodo = await this.collection.findById(todoObjectId);
+      const updatedTodo = updatedTodos[0];
       if (!updatedTodo) {
-        throw new Err.NotFoundError('Failed to retrieve updated todo');
+        throw new Err.DatabaseError('Failed to retrieve updated todo');
       }
 
       this.appContext.logger.info('Todo completion toggled successfully', {
@@ -399,7 +436,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         todoId: id,
         userId,
         operation: 'toggleCompletion',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
@@ -415,52 +452,56 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
     }
   ): Promise<Todo[]> {
     try {
-      const userObjectId = this.parseObjectId(userId);
+      const db = await this.ensureDatabase();
 
-      const filter: TodoMongoFilter = {
-        userId: userObjectId,
-        deletedAt: { $exists: false }
-      };
+      let query = db
+        .select()
+        .from(todos)
+        .where(eq(todos.userId, userId));
 
       // Filter by completion status if specified
       if (options?.includeCompleted === false) {
-        filter.completed = false;
+        query = query.where(
+          and(
+            eq(todos.userId, userId),
+            eq(todos.completed, false)
+          )
+        );
       }
 
-      // Build query options
-      const queryOptions: TodoQueryOptions = {};
-      
       // Apply sorting (default to newest first)
-      if (options?.sort) {
-        queryOptions.sort = options.sort;
+      if (options?.sort?.createdAt === -1) {
+        query = query.orderBy(desc(todos.createdAt));
+      } else if (options?.sort?.createdAt === 1) {
+        query = query.orderBy(asc(todos.createdAt));
       } else {
-        queryOptions.sort = { createdAt: -1 };
+        query = query.orderBy(desc(todos.createdAt));
       }
 
       // Apply pagination
-      if (options?.skip) {
-        queryOptions.skip = options.skip;
-      }
       if (options?.limit) {
-        queryOptions.limit = options.limit;
+        query = query.limit(options.limit);
+      }
+      if (options?.skip) {
+        query = query.offset(options.skip);
       }
 
-      const todos = await this.collection.find(filter, queryOptions);
+      const todoList = await query;
 
       this.appContext.logger.info('Found todos for user', {
         userId,
-        count: todos.length,
+        count: todoList.length,
         includeCompleted: options?.includeCompleted,
         operation: 'findByUserId'
       });
 
-      return todos.map(todo => this.toDomainTodo(todo));
+      return todoList.map(todo => this.toDomainTodo(todo));
     } catch (error) {
       this.appContext.logger.error('Failed to find todos by user ID', {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
         operation: 'findByUserId',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
@@ -468,31 +509,34 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
 
   async findByStatus(userId: string, completed: boolean): Promise<Todo[]> {
     try {
-      const userObjectId = this.parseObjectId(userId);
+      const db = await this.ensureDatabase();
 
-      const filter: TodoMongoFilter = {
-        userId: userObjectId,
-        completed,
-        deletedAt: { $exists: false }
-      };
-
-      const todos = await this.collection.find(filter, { sort: { createdAt: -1 } });
+      const todoList = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.userId, userId),
+            eq(todos.completed, completed)
+          )
+        )
+        .orderBy(desc(todos.createdAt));
 
       this.appContext.logger.info('Found todos by status', {
         userId,
         completed,
-        count: todos.length,
+        count: todoList.length,
         operation: 'findByStatus'
       });
 
-      return todos.map(todo => this.toDomainTodo(todo));
+      return todoList.map(todo => this.toDomainTodo(todo));
     } catch (error) {
       this.appContext.logger.error('Failed to find todos by status', {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
         completed,
         operation: 'findByStatus',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
@@ -500,33 +544,38 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
 
   async countByUserId(userId: string, filter?: { completed?: boolean }): Promise<number> {
     try {
-      const userObjectId = this.parseObjectId(userId);
+      const db = await this.ensureDatabase();
 
-      const mongoFilter: TodoMongoFilter = {
-        userId: userObjectId,
-        deletedAt: { $exists: false }
-      };
+      let whereCondition = eq(todos.userId, userId);
 
       if (filter?.completed !== undefined) {
-        mongoFilter.completed = filter.completed;
+        whereCondition = and(
+          eq(todos.userId, userId),
+          eq(todos.completed, filter.completed)
+        );
       }
 
-      const count = await this.collection.count(mongoFilter);
+      const result = await db
+        .select({ count: count() })
+        .from(todos)
+        .where(whereCondition);
+
+      const todoCount = result[0]?.count ?? 0;
 
       this.appContext.logger.info('Counted todos for user', {
         userId,
-        count,
+        count: todoCount,
         filter,
         operation: 'countByUserId'
       });
 
-      return count;
+      return todoCount;
     } catch (error) {
       this.appContext.logger.error('Failed to count todos by user ID', {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
         operation: 'countByUserId',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }
@@ -534,50 +583,57 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
 
   async findAll(filter: TodoFilterQuery): Promise<Todo[]> {
     try {
-      const mongoFilter: TodoMongoFilter = {
-        deletedAt: { $exists: false }
-      };
+      const db = await this.ensureDatabase();
+
+      let whereConditions = [];
 
       if (filter.userId) {
-        mongoFilter.userId = this.parseObjectId(filter.userId);
+        whereConditions.push(eq(todos.userId, filter.userId));
       }
       if (filter.completed !== undefined) {
-        mongoFilter.completed = filter.completed;
-      }
-      if (filter.title) {
-        mongoFilter.title = { $regex: filter.title, $options: 'i' };
+        whereConditions.push(eq(todos.completed, filter.completed));
       }
 
-      const queryOptions: TodoQueryOptions = {};
-      
-      if (filter.sort) {
-        queryOptions.sort = filter.sort;
+      let query = db
+        .select()
+        .from(todos);
+
+      if (whereConditions.length > 0) {
+        query = query.where(and(...whereConditions));
+      }
+
+      // Apply sorting
+      if (filter.sort?.createdAt === -1) {
+        query = query.orderBy(desc(todos.createdAt));
+      } else if (filter.sort?.createdAt === 1) {
+        query = query.orderBy(asc(todos.createdAt));
       } else {
-        queryOptions.sort = { createdAt: -1 };
+        query = query.orderBy(desc(todos.createdAt));
       }
 
+      // Apply pagination
       if (filter.skip) {
-        queryOptions.skip = filter.skip;
+        query = query.offset(filter.skip);
       }
       if (filter.limit) {
-        queryOptions.limit = filter.limit;
+        query = query.limit(filter.limit);
       }
 
-      const todos = await this.collection.find(mongoFilter, queryOptions);
+      const todoList = await query;
 
       this.appContext.logger.info('Found todos with filter', {
         filter,
-        count: todos.length,
+        count: todoList.length,
         operation: 'findAll'
       });
 
-      return todos.map(todo => this.toDomainTodo(todo));
+      return todoList.map(todo => this.toDomainTodo(todo));
     } catch (error) {
       this.appContext.logger.error('Failed to find todos with filter', {
         error: error instanceof Error ? error.message : 'Unknown error',
         filter,
         operation: 'findAll',
-        repository: 'MongoTodoRepository'
+        repository: 'DrizzleTodoRepository'
       });
       throw error;
     }

@@ -19,14 +19,10 @@ export const env = createEnv({
       .transform(Number),
 
     // Database Configuration
-    MONGODB_URI: z
+    DATABASE_URL: z
       .string()
-      .url('MONGODB_URI must be a valid URL')
-      .default('mongodb://localhost:27017'),
-    DB_NAME: z
-      .string()
-      .min(1, 'DB_NAME cannot be empty')
-      .default('agent_support'),
+      .url('DATABASE_URL must be a valid PostgreSQL connection string')
+      .default('postgresql://username:password@localhost:5432/todoapp'),
 
     // Authentication Configuration
     BETTER_AUTH_SECRET: z
@@ -55,8 +51,7 @@ export const env = createEnv({
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     PORT: process.env.PORT,
-    MONGODB_URI: process.env.MONGODB_URI,
-    DB_NAME: process.env.DB_NAME,
+    DATABASE_URL: process.env.DATABASE_URL,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
   },

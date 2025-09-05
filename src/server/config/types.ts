@@ -12,8 +12,7 @@ export interface ServerConfig {
  * Database configuration extracted from environment variables
  */
 export interface DatabaseConfig {
-  readonly uri: string;
-  readonly name: string;
+  readonly url: string;
 }
 
 /**
@@ -44,8 +43,7 @@ export function createAppConfig(): AppConfig {
       nodeEnv: env.NODE_ENV,
     },
     database: {
-      uri: env.MONGODB_URI,
-      name: env.DB_NAME,
+      url: env.DATABASE_URL,
     },
     auth: {
       secret: env.BETTER_AUTH_SECRET,

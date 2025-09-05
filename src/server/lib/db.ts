@@ -1,13 +1,16 @@
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import { createLogger } from '~/server/infrastructure/logging/logger-factory';
 import type { DatabaseConfig } from '~/server/config/types';
-import { type Db, MongoClient } from 'mongodb';
+import { schema } from '~/server/infrastructure/db/schema';
 
+type DrizzleDB = ReturnType<typeof drizzle<typeof schema>>;
 
 let dbConfig: DatabaseConfig;
 let logger: ReturnType<typeof createLogger>;
 
-let client: MongoClient;
-let db: Db;
+let client: ReturnType<typeof postgres>;
+let db: DrizzleDB;
 
 /**
  * Initialize database configuration
@@ -18,7 +21,7 @@ export function initializeDatabaseConfig(config: DatabaseConfig, nodeEnv: 'devel
   logger = createLogger({ environment: nodeEnv });
 }
 
-export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
+export async function connectToDatabase(): Promise<{ client: ReturnType<typeof postgres>; db: DrizzleDB }> {
   if (!dbConfig) {
     throw new Error('Database configuration not initialized. Call initializeDatabaseConfig first.');
   }
@@ -27,37 +30,37 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
   }
 
   try {
-    client = new MongoClient(dbConfig.uri);
-    await client.connect();
-    db = client.db(dbConfig.name);
+    // Create PostgreSQL client
+    client = postgres(dbConfig.url, {
+      max: 10, // Maximum number of connections in pool
+      idle_timeout: 20, // Seconds before closing idle connections
+      connect_timeout: 10, // Seconds to wait for connection
+    });
 
-    logger.info('Connected to MongoDB', { database: dbConfig.name });
+    // Create Drizzle instance with schema
+    db = drizzle(client, { 
+      schema,
+      logger: process.env.NODE_ENV === 'development', // Enable query logging in development
+    });
 
-     // Skip index creation, it will be handled by migrations
-    // Create indexes on first connection (in production, this should be done via migrations)
-    // if (!indexesCreated && process.env.NODE_ENV !== 'test') {
-    //   try {       
-    //     await createDatabaseIndexes(db);
-    //     indexesCreated = true;
-    //   } catch (error) {
-    //     logger.warn('Failed to create database indexes', {
-    //       error: error instanceof Error ? error.message : String(error),
-    //     });
-    //     // Don't fail the connection if index creation fails
-    //   }
-    // }
+    // Test connection
+    await client`SELECT 1`;
+
+    logger.info('Connected to PostgreSQL database', { 
+      url: dbConfig.url.replace(/\/\/[^:]*:[^@]*@/, '//***:***@'), // Hide credentials
+    });
 
     return { client, db };
   } catch (error) {
-    logger.error('Failed to connect to MongoDB', {
+    logger.error('Failed to connect to PostgreSQL', {
       error: error instanceof Error ? error.message : String(error),
-      uri: dbConfig.uri.replace(/\/\/[^:]*:[^@]*@/, '//***:***@'), // Hide credentials
+      url: dbConfig.url.replace(/\/\/[^:]*:[^@]*@/, '//***:***@'), // Hide credentials
     });
     throw error;
   }
 }
 
-export async function getDatabase(): Promise<Db> {
+export async function getDatabase(): Promise<DrizzleDB> {
   if (!db) {
     const { db: database } = await connectToDatabase();
     return database;
@@ -67,8 +70,8 @@ export async function getDatabase(): Promise<Db> {
 
 export async function closeDatabaseConnection(): Promise<void> {
   if (client) {
-    await client.close();
-    logger.info('Disconnected from MongoDB');
+    await client.end();
+    logger.info('Disconnected from PostgreSQL');
   }
 }
 

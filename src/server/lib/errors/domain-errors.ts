@@ -130,6 +130,19 @@ export class RateLimitError extends DomainError {
 }
 
 /**
+ * Database operation error (500)
+ * Use when database operations fail unexpectedly
+ */
+export class DatabaseError extends DomainError {
+  readonly code = 'DATABASE_ERROR';
+  readonly httpStatus = 500;
+  
+  constructor(message = 'Database operation failed', details?: Record<string, unknown>) {
+    super(message, details);
+  }
+}
+
+/**
  * Not implemented (501)
  * Use when functionality is not implemented or deprecated
  */

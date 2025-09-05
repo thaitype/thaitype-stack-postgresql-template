@@ -13,7 +13,7 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 - 🎨 **Modern UI** - Mantine components with responsive design
 - 🏗️ **Enterprise Architecture** - Entity-based repository pattern
 - 🔒 **Type Safety** - Full TypeScript with tRPC API layer
-- 📊 **Database** - MongoDB with audit logging via Monguard
+- 📊 **Database** - PostgreSQL with Drizzle ORM and audit logging
 - ⚡ **Performance** - Next.js 15 with App Router and React 19
 - 🎯 **Production Ready** - ESLint, Prettier, structured logging
 
@@ -26,8 +26,8 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 
 ### Backend & API
 - **[tRPC](https://trpc.io)** - End-to-end typesafe APIs
-- **[MongoDB](https://mongodb.com)** - Document database
-- **[Monguard](https://github.com/thaitype/monguard)** - MongoDB wrapper with audit logging
+- **[PostgreSQL](https://postgresql.org)** - Relational database
+- **[Drizzle ORM](https://orm.drizzle.team)** - TypeScript ORM with SQL-like syntax
 - **[Better Auth](https://www.better-auth.com)** - Modern authentication library
 - **[Zod](https://zod.dev)** - TypeScript-first schema validation
 
@@ -40,7 +40,6 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 - **[ESLint](https://eslint.org)** - Code linting
 - **[Prettier](https://prettier.io)** - Code formatting  
 - **[Pino](https://getpino.io)** - Structured logging
-- **[OpenTelemetry](https://opentelemetry.io)** - Observability
 
 ## 🏗️ Architecture
 
@@ -69,7 +68,7 @@ src/
 - **Entity-First Design**: All types derive from database entities
 - **Domain-Driven Services**: Business logic with string-based IDs  
 - **Type-Safe Validation**: Zod schemas with `matches<T>()` utility
-- **Audit Logging**: Automatic change tracking via Monguard
+- **Native Features**: Drizzle's built-in UUID and timestamp management
 - **Structured Logging**: Request tracing and error context
 
 ## 🚦 Quick Start
@@ -77,7 +76,7 @@ src/
 ### Prerequisites
 - **Node.js 18+** 
 - **pnpm** (recommended) or npm
-- **MongoDB** instance (local or MongoDB Atlas)
+- **PostgreSQL** instance (local or cloud)
 
 ### 1. Clone and Install
 ```bash
@@ -94,8 +93,7 @@ cp .env.example .env
 Configure your `.env` file:
 ```env
 # Database
-MONGODB_URI="mongodb://localhost:27017"
-DB_NAME="todo_app"
+DATABASE_URL="postgresql://username:password@localhost:5432/todoapp"
 
 # Authentication
 BETTER_AUTH_SECRET="your-secret-key-here"
@@ -106,7 +104,19 @@ NODE_ENV="development"
 PORT="3000"
 ```
 
-### 3. Start Development
+### 3. Database Setup
+```bash
+# Generate migration files
+pnpm db:generate
+
+# Run migrations to create tables
+pnpm db:push
+
+# Seed the database with sample data (optional)
+pnpm db:seed
+```
+
+### 4. Start Development
 ```bash
 pnpm dev
 ```
@@ -121,6 +131,12 @@ pnpm dev              # Start development server with Turbo
 pnpm build            # Build for production
 pnpm start            # Start production server
 pnpm preview          # Build and start production server
+
+# Database
+pnpm db:generate      # Generate migration files
+pnpm db:push          # Push schema to database
+pnpm db:studio        # Open Drizzle Studio (database GUI)
+pnpm db:seed          # Seed database with sample data
 
 # Code Quality
 pnpm lint             # Run ESLint
@@ -155,12 +171,12 @@ interface Todo {
   userId: string;
 }
 
-// Database Entity (ObjectIds)  
+// Database Entity (UUIDs)  
 interface DbTodoEntity {
-  _id: ObjectId;
+  id: string;
   title: string;
   completed: boolean;
-  userId: ObjectId;
+  userId: string;
 }
 
 // Repository Interface (domain types)
@@ -207,30 +223,38 @@ function MyComponent() {
 
 ## 📊 Database Schema
 
-### User Collection
+### Users Table
 ```typescript
-interface DbUserEntity extends AuditableDocument {
+interface DbUserEntity {
+  id: string;          // UUID primary key (auto-generated)
   name: string;
   email: string;
-  emailVerified: boolean;
-  roles: string[];
+  roles: ('admin' | 'user')[];
+  isActive: boolean;
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
 }
 ```
 
-### Todo Collection
+### Todos Table
 ```typescript  
-interface DbTodoEntity extends AuditableDocument {
+interface DbTodoEntity {
+  id: string;          // UUID primary key (auto-generated)
   title: string;
   description?: string;
   completed: boolean;
-  userId: ObjectId;
+  userId: string;      // Foreign key to users.id
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
 }
 ```
 
-All entities include automatic audit fields via Monguard:
-- `createdAt`, `updatedAt`, `deletedAt`
-- `createdBy`, `updatedBy`, `deletedBy`
-- Version tracking with `__v`
+All entities include automatic timestamp management:
+- `createdAt`: Set automatically on creation
+- `updatedAt`: Updated automatically on any change
+- Native UUID generation for primary keys
 
 ## 🚀 Deployment
 
@@ -243,7 +267,7 @@ pnpm build
 Set these in your production environment:
 ```env
 NODE_ENV="production"
-MONGODB_URI="mongodb+srv://..."
+DATABASE_URL="postgresql://user:pass@host:5432/dbname"
 BETTER_AUTH_SECRET="secure-production-secret"
 NEXT_PUBLIC_BETTER_AUTH_URL="https://yourdomain.com/api/auth"
 ```
@@ -313,7 +337,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [T3 Stack](https://create.t3.gg/) foundation
 - UI components by [Mantine](https://mantine.dev)
-- Database management by [Monguard](https://github.com/thaitype/monguard)
+- Database ORM by [Drizzle](https://orm.drizzle.team)
 - Authentication by [Better Auth](https://www.better-auth.com)
 
 ---
