@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import {
   TextInput,
   PasswordInput,
@@ -17,7 +17,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { signIn } from '~/lib/auth-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
@@ -25,10 +25,14 @@ interface LoginFormProps {
   onLoginSuccess?: () => void;
 }
 
-export function LoginForm({ onSwitchToRegister, redirectTo = '/', onLoginSuccess }: LoginFormProps) {
+function LoginFormContent({ onSwitchToRegister, redirectTo = '/', onLoginSuccess }: LoginFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Get redirect URL from search params or use the prop
+  const finalRedirectTo = searchParams.get('redirectTo') ?? redirectTo;
 
   const form = useForm({
     initialValues: {
@@ -69,7 +73,7 @@ export function LoginForm({ onSwitchToRegister, redirectTo = '/', onLoginSuccess
         onLoginSuccess();
       }
 
-      router.push(redirectTo);
+      router.push(finalRedirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -116,14 +120,37 @@ export function LoginForm({ onSwitchToRegister, redirectTo = '/', onLoginSuccess
         </Stack>
       </form>
 
-      {onSwitchToRegister && (
+      {onSwitchToRegister ? (
         <Text ta="center" mt="md">
           Don&apos;t have an account?{' '}
           <Anchor component="button" type="button" onClick={onSwitchToRegister}>
             Register
           </Anchor>
         </Text>
+      ) : (
+        <Text ta="center" mt="md">
+          Don&apos;t have an account?{' '}
+          <Anchor href="/register" size="sm">
+            Create one here
+          </Anchor>
+          {' | '}
+          <Anchor href="/" size="sm">
+            Back to Home
+          </Anchor>
+        </Text>
       )}
     </Paper>
+  );
+}
+
+export function LoginForm({ onSwitchToRegister, redirectTo = '/', onLoginSuccess }: LoginFormProps) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginFormContent 
+        onSwitchToRegister={onSwitchToRegister}
+        redirectTo={redirectTo}
+        onLoginSuccess={onLoginSuccess}
+      />
+    </Suspense>
   );
 }

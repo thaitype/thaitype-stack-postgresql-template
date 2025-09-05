@@ -178,11 +178,22 @@ export function RegisterForm({ onSwitchToLogin, redirectTo = '/', onRegisterSucc
         </Stack>
       </form>
 
-      {onSwitchToLogin && (
+      {onSwitchToLogin ? (
         <Text ta="center" mt="md">
           Already have an account?{' '}
           <Anchor component="button" type="button" onClick={onSwitchToLogin}>
             Sign in
+          </Anchor>
+        </Text>
+      ) : (
+        <Text ta="center" mt="md">
+          Already have an account?{' '}
+          <Anchor href="/login" size="sm">
+            Sign in here
+          </Anchor>
+          {' | '}
+          <Anchor href="/" size="sm">
+            Back to Home
           </Anchor>
         </Text>
       )}

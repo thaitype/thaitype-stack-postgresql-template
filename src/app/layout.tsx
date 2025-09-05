@@ -9,7 +9,7 @@ import { TRPCReactProvider } from "~/trpc/react";
 import ClientProviders from './ClientProviders';
 
 export const metadata: Metadata = {
-  title: "Support App",
+  title: "Todo App",
   description: "Authentication system with Mantine UI",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
