@@ -13,7 +13,9 @@ import {
   Center,
   Badge,
   Paper,
+  Box,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconInfoCircle, IconCheckupList, IconCircleCheck, IconClock } from '@tabler/icons-react';
 import { api } from '~/trpc/react';
 import { TodoItem } from './TodoItem';
@@ -23,6 +25,7 @@ type FilterType = 'all' | 'pending' | 'completed';
 
 export function TodoList() {
   const [filter, setFilter] = useState<FilterType>('all');
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   const { 
     data: todosData, 
@@ -141,7 +144,7 @@ export function TodoList() {
 
       {/* Filter Controls */}
       {todos.length > 0 && (
-        <Group justify="space-between" align="center">
+        <Stack gap="sm">
           <Title order={4}>
             Your Tasks
             <Badge size="sm" variant="light" color="blue" ml="xs">
@@ -149,50 +152,71 @@ export function TodoList() {
             </Badge>
           </Title>
           
-          <SegmentedControl
-            size="sm"
-            value={filter}
-            onChange={(value) => setFilter(value as FilterType)}
-            data={[
-              {
-                label: (
-                  <Group gap="xs">
-                    <IconCheckupList size="0.9rem" />
-                    <Text size="sm">All</Text>
-                    <Badge size="xs" variant="light" color="blue">
-                      {todos.length}
-                    </Badge>
-                  </Group>
-                ),
-                value: 'all',
-              },
-              {
-                label: (
-                  <Group gap="xs">
-                    <IconClock size="0.9rem" />
-                    <Text size="sm">Pending</Text>
-                    <Badge size="xs" variant="light" color="orange">
-                      {stats.pending}
-                    </Badge>
-                  </Group>
-                ),
-                value: 'pending',
-              },
-              {
-                label: (
-                  <Group gap="xs">
-                    <IconCircleCheck size="0.9rem" />
-                    <Text size="sm">Done</Text>
-                    <Badge size="xs" variant="light" color="green">
-                      {stats.completed}
-                    </Badge>
-                  </Group>
-                ),
-                value: 'completed',
-              },
-            ]}
-          />
-        </Group>
+          <Box style={{ alignSelf: isMobile ? 'stretch' : 'flex-end' }}>
+            <SegmentedControl
+              size={isMobile ? "xs" : "sm"}
+              value={filter}
+              onChange={(value) => setFilter(value as FilterType)}
+              fullWidth={isMobile}
+              data={[
+                {
+                  label: isMobile ? (
+                    <Box ta="center">
+                      <Text size="xs">All</Text>
+                      <Badge size="xs" variant="light" color="blue">
+                        {todos.length}
+                      </Badge>
+                    </Box>
+                  ) : (
+                    <Group gap="xs" wrap="nowrap">
+                      <Text size="sm">All</Text>
+                      <Badge size="xs" variant="light" color="blue">
+                        {todos.length}
+                      </Badge>
+                    </Group>
+                  ),
+                  value: 'all',
+                },
+                {
+                  label: isMobile ? (
+                    <Box ta="center">
+                      <Text size="xs">Pending</Text>
+                      <Badge size="xs" variant="light" color="orange">
+                        {stats.pending}
+                      </Badge>
+                    </Box>
+                  ) : (
+                    <Group gap="xs" wrap="nowrap">
+                      <Text size="sm">Pending</Text>
+                      <Badge size="xs" variant="light" color="orange" style={{ minWidth: 20 }}>
+                        {stats.pending}
+                      </Badge>
+                    </Group>
+                  ),
+                  value: 'pending',
+                },
+                {
+                  label: isMobile ? (
+                    <Box ta="center">
+                      <Text size="xs">Done</Text>
+                      <Badge size="xs" variant="light" color="green">
+                        {stats.completed}
+                      </Badge>
+                    </Box>
+                  ) : (
+                    <Group gap="xs" wrap="nowrap">
+                      <Text size="sm">Done</Text>
+                      <Badge size="xs" variant="light" color="green"  style={{ minWidth: 20 }}>
+                        {stats.completed}
+                      </Badge>
+                    </Group>
+                  ),
+                  value: 'completed',
+                },
+              ]}
+            />
+          </Box>
+        </Stack>
       )}
 
       {/* Todo Items */}
