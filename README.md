@@ -1,5 +1,9 @@
 # Todo App Template - Next.js Enterprise Stack
 
+> This project is using upstream from [thaitype-stack-mongodb-template](https://github.com/thaitype/thaitype-stack-mongodb-template), however, this will be a sql-based template with drizzleorm
+>
+> This project is in-progress. Please check back later for updates.
+
 A production-ready **Todo Application Template** built with Next.js 15, implementing enterprise-grade patterns and modern development practices. This template serves as a robust foundation for building scalable full-stack applications with authentication, CRUD operations, and real-time updates.
 
 ## ✨ Features
