@@ -38,8 +38,8 @@ export function TodoList() {
     isLoading: statsLoading 
   } = api.todo.getStats.useQuery();
 
-  const todos = todosData?.todos || [];
-  const stats = statsData?.stats || { total: 0, completed: 0, pending: 0 };
+  const todos = todosData?.todos ?? [];
+  const stats = statsData?.stats ?? { total: 0, completed: 0, pending: 0 };
 
   // Filter todos based on current filter
   const filteredTodos = todos.filter(todo => {
@@ -54,7 +54,7 @@ export function TodoList() {
   });
 
   const handleRefresh = () => {
-    refetchTodos();
+    void refetchTodos();
   };
 
   if (todosLoading || statsLoading) {

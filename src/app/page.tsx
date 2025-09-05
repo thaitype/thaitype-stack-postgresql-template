@@ -9,7 +9,6 @@ import {
   Stack, 
   Card, 
   Grid,
-  Badge,
 } from '@mantine/core';
 import { IconUser, IconShieldCheck, IconSettings } from '@tabler/icons-react';
 import { useSession } from '~/lib/auth-client';

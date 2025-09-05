@@ -34,7 +34,7 @@ interface TodoItemProps {
 export function TodoItem({ todo, onUpdate }: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(todo.title);
-  const [editDescription, setEditDescription] = useState(todo.description || '');
+  const [editDescription, setEditDescription] = useState(todo.description ?? '');
 
   const utils = api.useUtils();
 
@@ -45,7 +45,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
         message: `Todo marked as ${!todo.completed ? 'completed' : 'pending'}`,
         color: 'green',
       });
-      utils.todo.getAll.invalidate();
+      void utils.todo.getAll.invalidate();
       onUpdate?.();
     },
     onError: (error) => {
@@ -65,7 +65,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
         color: 'green',
       });
       setIsEditing(false);
-      utils.todo.getAll.invalidate();
+      void utils.todo.getAll.invalidate();
       onUpdate?.();
     },
     onError: (error) => {
@@ -84,7 +84,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
         message: 'Todo deleted successfully',
         color: 'green',
       });
-      utils.todo.getAll.invalidate();
+      void utils.todo.getAll.invalidate();
       onUpdate?.();
     },
     onError: (error) => {
@@ -102,7 +102,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
 
   const handleEdit = () => {
     setEditTitle(todo.title);
-    setEditDescription(todo.description || '');
+    setEditDescription(todo.description ?? '');
     setIsEditing(true);
   };
 
@@ -125,7 +125,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
 
   const handleCancel = () => {
     setEditTitle(todo.title);
-    setEditDescription(todo.description || '');
+    setEditDescription(todo.description ?? '');
     setIsEditing(false);
   };
 

@@ -35,7 +35,7 @@ export function AddTodoForm({ onSuccess }: AddTodoFormProps) {
       setTitle('');
       setDescription('');
       setIsExpanded(false);
-      utils.todo.getAll.invalidate();
+      void utils.todo.getAll.invalidate();
       onSuccess?.();
     },
     onError: (error) => {

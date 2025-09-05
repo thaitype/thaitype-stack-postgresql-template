@@ -2,7 +2,6 @@ import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import { MongoClient } from 'mongodb';
 import { env } from '~/env';
-import { handleUserCreate, handleUserUpdate } from './auth-hooks';
 import { initializeDatabaseConfig } from './db';
 
 // Initialize database configuration for auth hooks

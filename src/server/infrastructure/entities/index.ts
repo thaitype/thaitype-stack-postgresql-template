@@ -13,6 +13,7 @@ export interface DbUserEntity extends AuditableDocument {
 }
 
 export interface DbTodoEntity extends AuditableDocument {
+  _id: ObjectId;
   title: string;
   description?: string;
   completed: boolean;

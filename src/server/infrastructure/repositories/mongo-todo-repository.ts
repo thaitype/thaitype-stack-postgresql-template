@@ -15,7 +15,7 @@ import type { ITodoRepository, Todo } from '~/server/domain';
 import type { DbTodoEntity } from '~/server/infrastructure/entities';
 import type { RepositoryContext } from '~/server/lib/constants';
 import { isValidObjectId } from '~/server/lib/constants';
-import { ObjectId, type Db, type Filter } from 'mongodb';
+import { ObjectId, type Db } from 'mongodb';
 import { BaseMongoRepository } from './base-mongo-repository';
 import * as Err from '~/server/lib/errors/domain-errors';
 
@@ -26,7 +26,6 @@ import {
   RepoTodoStatusUpdateSchema,
   RepoTodoTitleUpdateSchema,
   RepoTodoDescriptionUpdateSchema,
-  RepoObjectIdSchema,
 } from '~/server/domain/repositories/schemas/todo-repository-schemas';
 
 // Import repository types
@@ -38,6 +37,20 @@ import type {
   TodoDescriptionUpdate,
   TodoFilterQuery,
 } from '~/server/domain/repositories/types/todo-repository-types';
+
+// Define local filter and options interfaces to avoid any types
+interface TodoMongoFilter {
+  userId?: ObjectId;
+  completed?: boolean;
+  deletedAt?: { $exists: boolean };
+  title?: { $regex: string; $options: string };
+}
+
+interface TodoQueryOptions {
+  sort?: Record<string, 1 | -1>;
+  skip?: number;
+  limit?: number;
+}
 
 export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> implements ITodoRepository {
   constructor(private appContext: AppContext, db: Db) {
@@ -71,7 +84,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
    */
   private toDomainTodo(dbTodo: DbTodoEntity): Todo {
     return {
-      id: (dbTodo._id as ObjectId)?.toString() ?? '',
+      id: dbTodo._id.toString() ?? '',
       title: dbTodo.title,
       description: dbTodo.description,
       completed: dbTodo.completed,
@@ -106,7 +119,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
       );
 
       this.appContext.logger.info('Todo created successfully in repository', {
-        todoId: createdTodo._id.toString(),
+        todoId: (createdTodo._id as ObjectId).toString(),
         title: validatedData.title,
         operation: 'create'
       });
@@ -404,7 +417,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
     try {
       const userObjectId = this.parseObjectId(userId);
 
-      const filter: any = {
+      const filter: TodoMongoFilter = {
         userId: userObjectId,
         deletedAt: { $exists: false }
       };
@@ -415,7 +428,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
       }
 
       // Build query options
-      const queryOptions: any = {};
+      const queryOptions: TodoQueryOptions = {};
       
       // Apply sorting (default to newest first)
       if (options?.sort) {
@@ -457,7 +470,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
     try {
       const userObjectId = this.parseObjectId(userId);
 
-      const filter: any = {
+      const filter: TodoMongoFilter = {
         userId: userObjectId,
         completed,
         deletedAt: { $exists: false }
@@ -489,7 +502,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
     try {
       const userObjectId = this.parseObjectId(userId);
 
-      const mongoFilter: any = {
+      const mongoFilter: TodoMongoFilter = {
         userId: userObjectId,
         deletedAt: { $exists: false }
       };
@@ -521,7 +534,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
 
   async findAll(filter: TodoFilterQuery): Promise<Todo[]> {
     try {
-      const mongoFilter: any = {
+      const mongoFilter: TodoMongoFilter = {
         deletedAt: { $exists: false }
       };
 
@@ -535,7 +548,7 @@ export class MongoTodoRepository extends BaseMongoRepository<DbTodoEntity> imple
         mongoFilter.title = { $regex: filter.title, $options: 'i' };
       }
 
-      const queryOptions: any = {};
+      const queryOptions: TodoQueryOptions = {};
       
       if (filter.sort) {
         queryOptions.sort = filter.sort;

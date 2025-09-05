@@ -14,7 +14,6 @@
 
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
-import type { RepositoryContext } from '~/server/lib/constants';
 import { createRepositoryContext } from '~/server/lib/constants';
 import * as Err from '~/server/lib/errors/domain-errors';
 
