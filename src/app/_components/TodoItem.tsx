@@ -46,6 +46,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
         color: 'green',
       });
       void utils.todo.getAll.invalidate();
+      void utils.todo.getStats.invalidate();
       onUpdate?.();
     },
     onError: (error) => {
@@ -66,6 +67,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
       });
       setIsEditing(false);
       void utils.todo.getAll.invalidate();
+      void utils.todo.getStats.invalidate();
       onUpdate?.();
     },
     onError: (error) => {
@@ -85,6 +87,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
         color: 'green',
       });
       void utils.todo.getAll.invalidate();
+      void utils.todo.getStats.invalidate();
       onUpdate?.();
     },
     onError: (error) => {

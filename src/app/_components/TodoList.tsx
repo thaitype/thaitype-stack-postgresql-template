@@ -56,8 +56,11 @@ export function TodoList() {
     }
   });
 
+  const utils = api.useUtils();
+
   const handleRefresh = () => {
     void refetchTodos();
+    void utils.todo.getStats.invalidate();
   };
 
   if (todosLoading || statsLoading) {
