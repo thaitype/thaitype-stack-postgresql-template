@@ -1,12 +1,17 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { env } from '~/env';
-import { getDatabase } from './db';
+import { getDatabase, initializeDatabaseConfig } from './db';
+import { createAppConfig } from '../config/types';
 
 // Lazy-initialized auth instance
 let authInstance: ReturnType<typeof betterAuth> | null = null;
 
 async function createAuthInstance() {
+  // Initialize database configuration first
+  const appConfig = createAppConfig();
+  initializeDatabaseConfig(appConfig.database, appConfig.server.nodeEnv);
+  
   // Get Drizzle database instance for Better Auth
   const db = await getDatabase();
   

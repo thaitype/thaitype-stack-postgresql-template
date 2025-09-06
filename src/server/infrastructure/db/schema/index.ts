@@ -10,16 +10,19 @@
 export { users } from './users';
 export { todos, todosRelations } from './todos';
 export { roles, userRoles } from './roles';
+export { user, session, account, verification } from './auth';
 
 // Re-import for schema object
 import { users } from './users';
 import { todos, todosRelations } from './todos';
 import { roles, userRoles } from './roles';
+import { user, session, account, verification } from './auth';
 
 // Database entity types (with database-specific fields)
 export type { DbUserEntity, DbUserInsert, DbUserUpdate } from './users';
 export type { DbTodoEntity, DbTodoInsert, DbTodoUpdate } from './todos';
 export type { DbRoleEntity, DbRoleInsert, DbUserRoleEntity, DbUserRoleInsert } from './roles';
+export type { AuthUser, AuthUserInsert, AuthSession, AuthSessionInsert, AuthAccount, AuthAccountInsert, AuthVerification, AuthVerificationInsert } from './auth';
 
 // Domain model types (for service layer - string-based IDs)
 export type { User } from './users';
@@ -37,4 +40,9 @@ export const schema = {
   todosRelations,
   roles,
   userRoles,
+  // Better Auth tables
+  user,
+  session,
+  account,
+  verification,
 } as const;
