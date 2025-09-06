@@ -47,12 +47,12 @@ const roleNamesSchema = z.array(z.string().min(1)).min(1, 'Role names array cann
  */
 const roleCreateSchema = z.object({
   name: z.string().min(1).max(50),
-  description: z.string().nullable().optional(),
+  description: z.string().nullable(),
 }) satisfies z.ZodType<RoleCreateRequest>;
 
 const roleBasicInfoUpdateSchema = z.object({
   name: z.string().min(1).max(50),
-  description: z.string().nullable().optional(),
+  description: z.string().nullable(),
 }) satisfies z.ZodType<RoleBasicInfoUpdate>;
 
 const userRolesSetSchema = z.object({
@@ -149,7 +149,7 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
       const role = result[0];
       return role ? this.mapDbEntityToDomain(role) : null;
     } catch (error) {
-      this.getLogger().error({ error, roleName: name }, 'Failed to find role by name');
+      this.getLogger().error('Failed to find role by name', { error: error instanceof Error ? error.message : String(error), roleName: name });
       throw error;
     }
   }
@@ -168,14 +168,17 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
 
       return result.map((role) => this.mapDbEntityToDomain(role));
     } catch (error) {
-      this.getLogger().error({ error, roleNames: names }, 'Failed to find roles by names');
+      this.getLogger().error('Failed to find roles by names', { error: error instanceof Error ? error.message : String(error), roleNames: names });
       throw error;
     }
   }
 
   async findAll(filter?: RoleFilterQuery): Promise<Role[]> {
     try {
-      let query = this.appContext.db.select().from(roles);
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+      
+      let query = db.select().from(roles);
 
       if (filter) {
         const conditions = [];
@@ -190,14 +193,14 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         }
 
         if (conditions.length > 0) {
-          query = query.where(and(...conditions));
+          query = query.where(and(...conditions)) as typeof query;
         }
       }
 
       const result = await query;
       return result.map((role) => this.mapDbEntityToDomain(role));
     } catch (error) {
-      this.getLogger().error({ error, filter }, 'Failed to find all roles');
+      this.getLogger().error('Failed to find all roles', { error: error instanceof Error ? error.message : String(error), filter });
       throw error;
     }
   }
@@ -224,17 +227,11 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         throw new NotFoundError('Role not found or update failed');
       }
 
-      this.getLogger().info(
-        { roleId: role.id, operatedBy: context.operatedBy },
-        'Role basic info updated successfully'
-      );
+      this.getLogger().info('Role basic info updated successfully', { roleId: role.id });
 
       return this.mapDbEntityToDomain(role);
     } catch (error) {
-      this.getLogger().error(
-        { error, roleId: id, data, operatedBy: context.operatedBy },
-        'Failed to update role basic info'
-      );
+      this.getLogger().error('Failed to update role basic info', { error: error instanceof Error ? error.message : String(error), roleId: id, data });
       throw error;
     }
   }
@@ -269,30 +266,24 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         throw new NotFoundError('Role not found or update failed');
       }
 
-      this.getLogger().info(
-        { roleId: role.id, operatedBy: context.operatedBy },
-        'Role basic info updated partially'
-      );
+      this.getLogger().info('Role basic info updated partially', { roleId: role.id });
 
       return this.mapDbEntityToDomain(role);
     } catch (error) {
-      this.getLogger().error(
-        { error, roleId: id, data, operatedBy: context.operatedBy },
-        'Failed to partially update role basic info'
-      );
+      this.getLogger().error('Failed to partially update role basic info', { error: error instanceof Error ? error.message : String(error), roleId: id, data });
       throw error;
     }
   }
 
   async updateName(id: string, data: RoleNameUpdate): Promise<Role> {
-    return this.updateBasicInfoPartial(id, { name: data.name }, context);
+    return this.updateBasicInfoPartial(id, { name: data.name });
   }
 
   async updateDescription(
     id: string,
     data: RoleDescriptionUpdate
   ): Promise<Role> {
-    return this.updateBasicInfoPartial(id, { description: data.description }, context);
+    return this.updateBasicInfoPartial(id, { description: data.description });
   }
 
   async deleteById(id: string): Promise<void> {
@@ -308,15 +299,9 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         throw new NotFoundError('Role not found');
       }
 
-      this.getLogger().info(
-        { roleId, operatedBy: context.operatedBy },
-        'Role deleted successfully'
-      );
+      this.getLogger().info('Role deleted successfully', { roleId });
     } catch (error) {
-      this.getLogger().error(
-        { error, roleId: id, operatedBy: context.operatedBy },
-        'Failed to delete role'
-      );
+      this.getLogger().error('Failed to delete role', { error: error instanceof Error ? error.message : String(error), roleId: id });
       throw error;
     }
   }
@@ -330,7 +315,10 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
       const userId = userIdSchema.parse(data.userId);
       const roleId = roleIdSchema.parse(data.roleId);
 
-      await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+      
+      await db
         .insert(userRoles)
         .values({
           userId,
@@ -338,15 +326,9 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         })
         .onConflictDoNothing();
 
-      this.getLogger().info(
-        { userId, roleId, operatedBy: context.operatedBy },
-        'Role assigned to user successfully'
-      );
+      this.getLogger().info('Role assigned to user successfully', { userId, roleId });
     } catch (error) {
-      this.getLogger().error(
-        { error, data, operatedBy: context.operatedBy },
-        'Failed to assign role to user'
-      );
+      this.getLogger().error('Failed to assign role to user', { error: error instanceof Error ? error.message : String(error), data });
       throw error;
     }
   }
@@ -356,19 +338,16 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
       const userId = userIdSchema.parse(data.userId);
       const roleId = roleIdSchema.parse(data.roleId);
 
-      await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+      
+      await db
         .delete(userRoles)
         .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)));
 
-      this.getLogger().info(
-        { userId, roleId, operatedBy: context.operatedBy },
-        'Role removed from user successfully'
-      );
+      this.getLogger().info('Role removed from user successfully', { userId, roleId });
     } catch (error) {
-      this.getLogger().error(
-        { error, data, operatedBy: context.operatedBy },
-        'Failed to remove role from user'
-      );
+      this.getLogger().error('Failed to remove role from user', { error: error instanceof Error ? error.message : String(error), data });
       throw error;
     }
   }
@@ -377,8 +356,11 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
     try {
       const validatedData = userRolesSetSchema.parse(data);
 
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+      
       // Get role IDs for the provided role names
-      const roleResults = await this.appContext.db
+      const roleResults = await db
         .select({ id: roles.id })
         .from(roles)
         .where(inArray(roles.name, validatedData.roleNames));
@@ -390,7 +372,7 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
       const roleIds = roleResults.map((r) => r.id);
 
       // Use transaction to ensure atomicity
-      await this.appContext.db.transaction(async (tx) => {
+      await db.transaction(async (tx) => {
         // Remove all existing roles for this user
         await tx.delete(userRoles).where(eq(userRoles.userId, validatedData.userId));
 
@@ -405,15 +387,9 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         }
       });
 
-      this.getLogger().info(
-        { userId: validatedData.userId, roleNames: validatedData.roleNames, operatedBy: context.operatedBy },
-        'User roles set successfully'
-      );
+      this.getLogger().info('User roles set successfully', { userId: validatedData.userId, roleNames: validatedData.roleNames });
     } catch (error) {
-      this.getLogger().error(
-        { error, data, operatedBy: context.operatedBy },
-        'Failed to set user roles'
-      );
+      this.getLogger().error('Failed to set user roles', { error: error instanceof Error ? error.message : String(error), data });
       throw error;
     }
   }
@@ -422,8 +398,11 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
     try {
       const userId = userIdSchema.parse(data.userId);
       const roleIds = data.roleIds.map((id) => roleIdSchema.parse(id));
+      
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
 
-      await this.appContext.db.transaction(async (tx) => {
+      await db.transaction(async (tx) => {
         // Remove all existing roles for this user
         await tx.delete(userRoles).where(eq(userRoles.userId, userId));
 
@@ -438,15 +417,9 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
         }
       });
 
-      this.getLogger().info(
-        { userId, roleIds, operatedBy: context.operatedBy },
-        'User roles updated in bulk successfully'
-      );
+      this.getLogger().info('User roles updated in bulk successfully', { userId, roleIds });
     } catch (error) {
-      this.getLogger().error(
-        { error, data, operatedBy: context.operatedBy },
-        'Failed to bulk update user roles'
-      );
+      this.getLogger().error('Failed to bulk update user roles', { error: error instanceof Error ? error.message : String(error), data });
       throw error;
     }
   }
@@ -466,7 +439,7 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
 
       return result.map((r) => r.name);
     } catch (error) {
-      this.getLogger().error({ error, userId }, 'Failed to get user role names');
+      this.getLogger().error('Failed to get user role names', { error: error instanceof Error ? error.message : String(error), userId });
       throw error;
     }
   }
@@ -478,8 +451,11 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
       }
 
       const validRoleNames = roleNamesSchema.parse(filter.roleNames);
+      
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
 
-      let query = this.appContext.db
+      let query = db
         .selectDistinct({ userId: userRoles.userId })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -487,19 +463,19 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
 
       if (filter.hasAllRoles) {
         // User must have ALL specified roles
-        query = this.appContext.db
+        query = db
           .select({ userId: userRoles.userId })
           .from(userRoles)
           .innerJoin(roles, eq(userRoles.roleId, roles.id))
           .where(inArray(roles.name, validRoleNames))
           .groupBy(userRoles.userId)
-          .having(sql`COUNT(DISTINCT ${roles.name}) = ${validRoleNames.length}`);
+          .having(sql`COUNT(DISTINCT ${roles.name}) = ${validRoleNames.length}`) as typeof query;
       }
 
       const result = await query;
       return result.map((r) => r.userId);
     } catch (error) {
-      this.getLogger().error({ error, filter }, 'Failed to get users with roles');
+      this.getLogger().error('Failed to get users with roles', { error: error instanceof Error ? error.message : String(error), filter });
       throw error;
     }
   }
@@ -520,7 +496,7 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
 
       return (result[0]?.count ?? 0) > 0;
     } catch (error) {
-      this.getLogger().error({ error, userId, roleName }, 'Failed to check if user has role');
+      this.getLogger().error('Failed to check if user has role', { error: error instanceof Error ? error.message : String(error), userId, roleName });
       throw error;
     }
   }
@@ -542,7 +518,7 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
 
       return (result[0]?.count ?? 0) > 0;
     } catch (error) {
-      this.getLogger().error({ error, userId, roleNames }, 'Failed to check if user has any role');
+      this.getLogger().error('Failed to check if user has any role', { error: error instanceof Error ? error.message : String(error), userId, roleNames });
       throw error;
     }
   }
@@ -563,7 +539,7 @@ export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implement
 
       return (result[0]?.count ?? 0) === validRoleNames.length;
     } catch (error) {
-      this.getLogger().error({ error, userId, roleNames }, 'Failed to check if user has all roles');
+      this.getLogger().error('Failed to check if user has all roles', { error: error instanceof Error ? error.message : String(error), userId, roleNames });
       throw error;
     }
   }

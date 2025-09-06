@@ -797,13 +797,8 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           .innerJoin(roles, eq(userRoles.roleId, roles.id))
           .where(inArray(roles.name, filter.roles));
 
-        let query = db
-          .select({ count: sql<number>`count(*)` })
-          .from(users)
-          .where(inArray(users.id, subquery));
-
-        // Apply other filters
-        const conditions: SQL[] = [];
+        // Apply filters
+        const conditions: SQL[] = [inArray(users.id, subquery)];
         if (filter?.email) {
           conditions.push(ilike(users.email, `%${filter.email}%`));
         }
@@ -811,9 +806,10 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           conditions.push(eq(users.isActive, filter.isActive));
         }
 
-        if (conditions.length > 0) {
-          query = query.where(and(inArray(users.id, subquery), ...conditions)) as typeof query;
-        }
+        const query = db
+          .select({ count: sql<number>`count(*)` })
+          .from(users)
+          .where(and(...conditions));
 
         const [result] = await query;
         const count = Number(result?.count) || 0;
