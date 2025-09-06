@@ -3,14 +3,17 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { env } from '~/env';
 import { getDatabase } from './db';
 
-// Get Drizzle database instance for Better Auth
-const db = await getDatabase();
+// Lazy-initialized auth instance
+let authInstance: ReturnType<typeof betterAuth> | null = null;
 
-// Standard Better Auth export pattern
-export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: 'pg', // PostgreSQL
-  }),
+async function createAuthInstance() {
+  // Get Drizzle database instance for Better Auth
+  const db = await getDatabase();
+  
+  return betterAuth({
+    database: drizzleAdapter(db, {
+      provider: 'pg', // PostgreSQL
+    }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Set to true in production
@@ -58,4 +61,26 @@ export const auth = betterAuth({
       enabled: true
     }
   }
-});
+  });
+}
+
+/**
+ * Get the auth instance, creating it if necessary
+ */
+export async function getAuth() {
+  authInstance ??= await createAuthInstance();
+  return authInstance;
+}
+
+/**
+ * Legacy export for compatibility - use getAuth() for new code
+ * @deprecated Use getAuth() instead for proper async initialization
+ */
+export const auth = {
+  get handler() {
+    throw new Error('Use getAuth() for proper async initialization instead of auth.handler');
+  },
+  get api() {
+    throw new Error('Use getAuth() for proper async initialization instead of auth.api');
+  }
+};
