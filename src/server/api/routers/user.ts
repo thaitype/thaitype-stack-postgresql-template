@@ -122,7 +122,7 @@ export const userRouter = createTRPCRouter({
         const user = ctx.user;
         const userService = ctx.container.userService;
 
-        const updatedUser = await userService.updateUserProfile(user.id, input, { operatedBy: user.id });
+        const updatedUser = await userService.updateUserProfile(user.id, input);
 
         if (!updatedUser) {
           throw new TRPCError({

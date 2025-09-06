@@ -1,16 +1,15 @@
 import type { CreateUserRequest, UpdateProfileRequest, UpdateUserRequest, User } from '~/server/domain/models';
 import type { IUserRepository } from '~/server/domain/repositories';
 import type { AppContext } from '~/server/context/app-context';
-import { SYSTEM_USER_ID, type RepositoryContext } from '~/server/lib/constants';
 import * as Err from '~/server/lib/errors/domain-errors';
 
 export interface IUserService {
   createUser(data: CreateUserRequest): Promise<User>;
   getUserById(id: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
-  updateUser(id: string, data: UpdateUserRequest, context: RepositoryContext): Promise<void>;
-  updateUserProfile(id: string, data: UpdateProfileRequest, context: RepositoryContext): Promise<User | null>;
-  deleteUser(id: string, context: RepositoryContext): Promise<void>;
+  updateUser(id: string, data: UpdateUserRequest): Promise<void>;
+  updateUserProfile(id: string, data: UpdateProfileRequest): Promise<User | null>;
+  deleteUser(id: string): Promise<void>;
   getAllUsers(
     filter?: Partial<User>,
     options?: {
@@ -52,7 +51,7 @@ export class UserService implements IUserService {
       website: data.website ?? undefined,
     };
 
-    const user = await this.userRepository.create(userData, { operatedBy: SYSTEM_USER_ID });
+    const user = await this.userRepository.create(userData);
     
     this.appContext.logger.info('User created successfully in service', {
       userId: user.id,
@@ -77,7 +76,7 @@ export class UserService implements IUserService {
     return await this.userRepository.findByEmail(email);
   }
 
-  async updateUser(id: string, data: UpdateUserRequest, context: RepositoryContext): Promise<void> {
+  async updateUser(id: string, data: UpdateUserRequest): Promise<void> {
     this.appContext.logger.info('Updating user in service', {
       userId: id,
       operation: 'updateUser',
@@ -101,17 +100,17 @@ export class UserService implements IUserService {
         bio: data.bio,
         avatar: data.avatar,
         website: data.website,
-      }, context);
+      });
     }
     
     // Update roles if provided
     if (data.roles !== undefined) {
-      await this.userRepository.updateRoles(id, { roles: data.roles }, context);
+      await this.userRepository.updateRoles(id, { roles: data.roles });
     }
     
     // Update status if provided
     if (data.isActive !== undefined) {
-      await this.userRepository.updateStatus(id, { isActive: data.isActive }, context);
+      await this.userRepository.updateStatus(id, { isActive: data.isActive });
     }
 
     this.appContext.logger.info('User updated successfully in service', {
@@ -120,7 +119,7 @@ export class UserService implements IUserService {
     });
   }
 
-  async updateUserProfile(id: string, data: UpdateProfileRequest, context: RepositoryContext): Promise<User | null> {
+  async updateUserProfile(id: string, data: UpdateProfileRequest): Promise<User | null> {
     this.appContext.logger.info('Updating user profile in service', {
       userId: id,
       operation: 'updateUserProfile',
@@ -142,7 +141,7 @@ export class UserService implements IUserService {
       bio: data.bio,
       avatar: data.avatar,
       website: data.website,
-    }, context);
+    });
 
     this.appContext.logger.info('User profile updated successfully in service', {
       userId: id,
@@ -152,7 +151,7 @@ export class UserService implements IUserService {
     return updatedUser;
   }
 
-  async deleteUser(id: string, context: RepositoryContext): Promise<void> {
+  async deleteUser(id: string): Promise<void> {
     if (!id) {
       throw new Err.ValidationError('User ID is required', { userId: id });
     }
@@ -162,7 +161,7 @@ export class UserService implements IUserService {
       throw new Err.NotFoundError('User not found', { userId: id });
     }
 
-    await this.userRepository.delete(id, context);
+    await this.userRepository.delete(id);
   }
 
   async getAllUsers(

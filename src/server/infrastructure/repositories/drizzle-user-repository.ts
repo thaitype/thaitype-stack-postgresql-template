@@ -11,7 +11,6 @@
 import type { ILogger } from '@thaitype/core-utils';
 import { eq, and, ilike, inArray } from 'drizzle-orm';
 import type { User } from '~/server/domain/models';
-import type { RepositoryContext } from '~/server/lib/constants';
 import type { IUserRepository } from '~/server/domain/repositories/user-repository';
 import type {
   UserCreateRequest,
@@ -78,7 +77,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
   // BASIC CRUD OPERATIONS
   // =============================================================================
 
-  async create(input: UserCreateRequest, context: RepositoryContext): Promise<User> {
+  async create(input: UserCreateRequest): Promise<User> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -90,7 +89,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         { 
           operation: 'create',
           entityName: this.entityName,
-          operatedBy: context.operatedBy,
           email: validatedData.email,
         }
       );
@@ -107,7 +105,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'create',
           entityName: this.entityName,
           id: created.id,
-          operatedBy: context.operatedBy,
         }
       );
 
@@ -118,7 +115,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         { 
           operation: 'create',
           entityName: this.entityName,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         }
       );
@@ -169,7 +165,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async delete(id: string, context: RepositoryContext): Promise<void> {
+  async delete(id: string): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -180,7 +176,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'delete',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         }
       );
 
@@ -192,7 +187,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'delete',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         }
       );
     } catch (error) {
@@ -202,7 +196,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'delete',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         }
       );
@@ -214,7 +207,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
   // DEDICATED UPDATE METHODS
   // =============================================================================
 
-  async updateBasicInfo(id: string, input: UserBasicInfoPartialUpdate, context: RepositoryContext): Promise<void> {
+  async updateBasicInfo(id: string, input: UserBasicInfoPartialUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -227,7 +220,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateBasicInfo',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         }
       );
 
@@ -239,7 +231,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateBasicInfo',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         }
       );
     } catch (error) {
@@ -249,7 +240,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateBasicInfo',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         }
       );
@@ -257,7 +247,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateRoles(id: string, input: UserRolesUpdate, context: RepositoryContext): Promise<void> {
+  async updateRoles(id: string, input: UserRolesUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -269,7 +259,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateRoles',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user roles'
       );
@@ -281,7 +270,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateRoles',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User roles updated successfully'
       );
@@ -291,7 +279,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateRoles',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user roles'
@@ -300,7 +287,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateEmail(id: string, input: UserEmailUpdate, context: RepositoryContext): Promise<void> {
+  async updateEmail(id: string, input: UserEmailUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -312,7 +299,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateEmail',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user email'
       );
@@ -324,7 +310,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateEmail',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User email updated successfully'
       );
@@ -334,7 +319,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateEmail',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user email'
@@ -343,7 +327,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateStatus(id: string, input: UserStatusUpdate, context: RepositoryContext): Promise<void> {
+  async updateStatus(id: string, input: UserStatusUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -355,7 +339,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateStatus',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user status'
       );
@@ -367,7 +350,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateStatus',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User status updated successfully'
       );
@@ -377,7 +359,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateStatus',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user status'
@@ -386,7 +367,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateProfile(id: string, input: UserProfilePartialUpdate, context: RepositoryContext): Promise<User | null> {
+  async updateProfile(id: string, input: UserProfilePartialUpdate): Promise<User | null> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -398,7 +379,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateProfile',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user profile'
       );
@@ -411,8 +391,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
             operation: 'updateProfile',
             entityName: this.entityName,
             id,
-            operatedBy: context.operatedBy,
-          },
+            },
           'User not found for profile update'
         );
         return null;
@@ -423,7 +402,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateProfile',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User profile updated successfully'
       );
@@ -435,7 +413,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateProfile',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user profile'
@@ -444,7 +421,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateName(id: string, input: UserNameUpdate, context: RepositoryContext): Promise<void> {
+  async updateName(id: string, input: UserNameUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -456,7 +433,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateName',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user name'
       );
@@ -468,7 +444,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateName',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User name updated successfully'
       );
@@ -478,7 +453,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateName',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user name'
@@ -487,7 +461,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateBio(id: string, input: UserBioUpdate, context: RepositoryContext): Promise<void> {
+  async updateBio(id: string, input: UserBioUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -499,7 +473,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateBio',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user bio'
       );
@@ -511,7 +484,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateBio',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User bio updated successfully'
       );
@@ -521,7 +493,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateBio',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user bio'
@@ -530,7 +501,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateAvatar(id: string, input: UserAvatarUpdate, context: RepositoryContext): Promise<void> {
+  async updateAvatar(id: string, input: UserAvatarUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -542,7 +513,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateAvatar',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user avatar'
       );
@@ -554,7 +524,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateAvatar',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User avatar updated successfully'
       );
@@ -564,7 +533,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateAvatar',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user avatar'
@@ -573,7 +541,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     }
   }
 
-  async updateWebsite(id: string, input: UserWebsiteUpdate, context: RepositoryContext): Promise<void> {
+  async updateWebsite(id: string, input: UserWebsiteUpdate): Promise<void> {
     try {
       await this.initializeDatabase();
       const db = await this.ensureDatabase();
@@ -585,7 +553,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateWebsite',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'Updating user website'
       );
@@ -597,7 +564,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateWebsite',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
         },
         'User website updated successfully'
       );
@@ -607,7 +573,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
           operation: 'updateWebsite',
           entityName: this.entityName,
           id,
-          operatedBy: context.operatedBy,
           error: (error as Error).message,
         },
         'Failed to update user website'
