@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  roles: ('admin' | 'user')[];
+  roles: string[];
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;
@@ -14,7 +14,7 @@ export interface User {
 export interface CreateUserRequest {
   email: string;
   name: string;
-  roles?: ('admin' | 'user')[];
+  roles?: string[];
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;
@@ -23,7 +23,7 @@ export interface CreateUserRequest {
 
 export interface UpdateUserRequest {
   name?: string;
-  roles?: ('admin' | 'user')[];
+  roles?: string[];
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;

@@ -94,12 +94,11 @@ export class AuthUserAPI {
 
       const betterAuthUser = result.data.user;
 
-      // Convert to our User type
+      // Convert to our User type (roles now handled in separate tables)
       const user: DbUserEntity = {
         id: betterAuthUser.id,
         email: betterAuthUser.email,
         name: betterAuthUser.name,
-        roles: (betterAuthUser.roles ?? ['user']) as ('admin' | 'user')[],
         bio: betterAuthUser.bio ?? null,
         avatar: betterAuthUser.avatar ?? null,
         website: betterAuthUser.website ?? null,

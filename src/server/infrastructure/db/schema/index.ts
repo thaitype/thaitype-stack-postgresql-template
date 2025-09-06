@@ -7,7 +7,7 @@
  */
 
 // Schema tables
-export { users, userRoleEnum } from './users';
+export { users } from './users';
 export { todos, todosRelations } from './todos';
 export { roles, userRoles } from './roles';
 

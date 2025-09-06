@@ -45,10 +45,12 @@ export type UserBasicInfoUpdate = Pick<DbUserEntity, 'name' | 'bio' | 'avatar' |
 export type UserBasicInfoPartialUpdate = Partial<UserBasicInfoUpdate>;
 
 /**
- * Update user roles
+ * Update user roles (now handled by role normalization tables)
  * Used by: updateRoles() repository method
  */
-export type UserRolesUpdate = Pick<DbUserEntity, 'roles'>;
+export type UserRolesUpdate = {
+  roles: string[];
+};
 
 /**
  * Update user email
@@ -111,7 +113,7 @@ export type UserProfilePartialUpdate = Partial<UserProfileUpdate>;
  * Used by: findByRole() repository method
  */
 export type UserRoleQuery = {
-  role: DbUserEntity['roles'][0];
+  role: string;
   includeInactive?: boolean;
 };
 
@@ -138,7 +140,7 @@ export type UserActiveQuery = {
  */
 export type UserFilterQuery = {
   email?: string;
-  roles?: DbUserEntity['roles'];
+  roles?: string[];
   isActive?: boolean;
   limit?: number;
   skip?: number;
@@ -156,7 +158,7 @@ export type UserFilterQuery = {
 export type UserCreateRequest = {
   email: string;
   name: string;
-  roles?: DbUserEntity['roles'];
+  roles?: string[];
   bio?: string;
   avatar?: string;
   website?: string;
@@ -169,7 +171,7 @@ export type UserCreateRequest = {
  */
 export type UserUpdateRequest = {
   name?: string;
-  roles?: DbUserEntity['roles'];
+  roles?: string[];
   bio?: string;
   avatar?: string;
   website?: string;

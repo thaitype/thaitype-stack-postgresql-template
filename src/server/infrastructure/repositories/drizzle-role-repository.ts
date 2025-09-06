@@ -7,11 +7,11 @@
  */
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { BasePostgresRepository } from './base/base-postgres-repository';
+import { BaseDrizzleRepository } from './base-drizzle-repository';
 import type { IRoleRepository } from '~/server/domain/repositories/role-repository';
 import type { Role } from '~/server/infrastructure/db/schema';
-import type { RepositoryContext } from '~/server/lib/validation/repository-context';
 import type { AppContext } from '~/server/context/app-context';
+import { getDatabase } from '~/server/lib/db';
 import {
   roles,
   userRoles,
@@ -31,9 +31,9 @@ import {
   type RoleFilterQuery,
   type UserRoleFilterQuery,
 } from '~/server/domain/repositories/types/role-repository-types';
-import { matches } from '~/server/lib/validation/zod-matches';
+import { matches } from '~/server/lib/validation/zod-utils';
 import { z } from 'zod';
-import { DomainError } from '~/server/lib/errors/domain-errors';
+import { NotFoundError, ValidationError } from '~/server/lib/errors/domain-errors';
 
 /**
  * Zod schemas for runtime validation with automatic string-to-UUID conversion
@@ -60,7 +60,7 @@ const userRolesSetSchema = z.object({
   roleNames: roleNamesSchema,
 }) satisfies z.ZodType<UserRolesSetData>;
 
-export class DrizzleRoleRepository extends BasePostgresRepository implements IRoleRepository {
+export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implements IRoleRepository {
   constructor(private appContext: AppContext) {
     super('Role');
   }
@@ -73,40 +73,50 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
   // ROLE CRUD OPERATIONS
   // =============================================================================
 
-  async create(data: RoleCreateRequest, context: RepositoryContext): Promise<Role> {
+  async create(data: RoleCreateRequest): Promise<Role> {
     try {
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
       const validatedData = roleCreateSchema.parse(data);
 
-      const result = await this.appContext.db
+      const result = await db
         .insert(roles)
         .values(validatedData)
         .returning();
 
       const role = result[0];
       if (!role) {
-        throw new DomainError('Failed to create role', 'CREATION_FAILED');
+        throw new ValidationError('Failed to create role');
       }
 
-      this.getLogger().info(
-        { roleId: role.id, roleName: role.name, operatedBy: context.operatedBy },
-        'Role created successfully'
-      );
+      this.getLogger().info('Role created successfully', {
+        roleId: role.id,
+        roleName: role.name,
+        operation: 'create',
+        entityName: this.entityName,
+      });
 
       return this.mapDbEntityToDomain(role);
     } catch (error) {
-      this.getLogger().error(
-        { error, data, operatedBy: context.operatedBy },
-        'Failed to create role'
-      );
+      this.getLogger().error('Failed to create role', {
+        error: error instanceof Error ? error.message : String(error),
+        data,
+        operation: 'create',
+        entityName: this.entityName,
+      });
       throw error;
     }
   }
 
   async findById(id: string): Promise<Role | null> {
     try {
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
       const roleId = roleIdSchema.parse(id);
 
-      const result = await this.appContext.db
+      const result = await db
         .select()
         .from(roles)
         .where(eq(roles.id, roleId))
@@ -115,14 +125,22 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
       const role = result[0];
       return role ? this.mapDbEntityToDomain(role) : null;
     } catch (error) {
-      this.getLogger().error({ error, roleId: id }, 'Failed to find role by ID');
+      this.getLogger().error('Failed to find role by ID', {
+        error: error instanceof Error ? error.message : String(error),
+        roleId: id,
+        operation: 'findById',
+        entityName: this.entityName,
+      });
       throw error;
     }
   }
 
   async findByName(name: string): Promise<Role | null> {
     try {
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .select()
         .from(roles)
         .where(eq(roles.name, name))
@@ -140,7 +158,10 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     try {
       const validatedNames = roleNamesSchema.parse(names);
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .select()
         .from(roles)
         .where(inArray(roles.name, validatedNames));
@@ -183,14 +204,16 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
 
   async updateBasicInfo(
     id: string,
-    data: RoleBasicInfoUpdate,
-    context: RepositoryContext
+    data: RoleBasicInfoUpdate
   ): Promise<Role> {
     try {
       const roleId = roleIdSchema.parse(id);
       const validatedData = roleBasicInfoUpdateSchema.parse(data);
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .update(roles)
         .set(validatedData)
         .where(eq(roles.id, roleId))
@@ -198,7 +221,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
 
       const role = result[0];
       if (!role) {
-        throw new DomainError('Role not found or update failed', 'NOT_FOUND');
+        throw new NotFoundError('Role not found or update failed');
       }
 
       this.getLogger().info(
@@ -218,8 +241,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
 
   async updateBasicInfoPartial(
     id: string,
-    data: RoleBasicInfoPartialUpdate,
-    context: RepositoryContext
+    data: RoleBasicInfoPartialUpdate
   ): Promise<Role> {
     try {
       const roleId = roleIdSchema.parse(id);
@@ -233,7 +255,10 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
         updateData.description = data.description;
       }
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .update(roles)
         .set(updateData)
         .where(eq(roles.id, roleId))
@@ -241,7 +266,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
 
       const role = result[0];
       if (!role) {
-        throw new DomainError('Role not found or update failed', 'NOT_FOUND');
+        throw new NotFoundError('Role not found or update failed');
       }
 
       this.getLogger().info(
@@ -259,26 +284,28 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     }
   }
 
-  async updateName(id: string, data: RoleNameUpdate, context: RepositoryContext): Promise<Role> {
+  async updateName(id: string, data: RoleNameUpdate): Promise<Role> {
     return this.updateBasicInfoPartial(id, { name: data.name }, context);
   }
 
   async updateDescription(
     id: string,
-    data: RoleDescriptionUpdate,
-    context: RepositoryContext
+    data: RoleDescriptionUpdate
   ): Promise<Role> {
     return this.updateBasicInfoPartial(id, { description: data.description }, context);
   }
 
-  async deleteById(id: string, context: RepositoryContext): Promise<void> {
+  async deleteById(id: string): Promise<void> {
     try {
       const roleId = roleIdSchema.parse(id);
 
-      const result = await this.appContext.db.delete(roles).where(eq(roles.id, roleId)).returning();
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db.delete(roles).where(eq(roles.id, roleId)).returning();
 
       if (!result[0]) {
-        throw new DomainError('Role not found', 'NOT_FOUND');
+        throw new NotFoundError('Role not found');
       }
 
       this.getLogger().info(
@@ -298,7 +325,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
   // USER-ROLE ASSOCIATION OPERATIONS
   // =============================================================================
 
-  async assignRoleToUser(data: UserRoleAssignData, context: RepositoryContext): Promise<void> {
+  async assignRoleToUser(data: UserRoleAssignData): Promise<void> {
     try {
       const userId = userIdSchema.parse(data.userId);
       const roleId = roleIdSchema.parse(data.roleId);
@@ -324,7 +351,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     }
   }
 
-  async removeRoleFromUser(data: UserRoleAssignData, context: RepositoryContext): Promise<void> {
+  async removeRoleFromUser(data: UserRoleAssignData): Promise<void> {
     try {
       const userId = userIdSchema.parse(data.userId);
       const roleId = roleIdSchema.parse(data.roleId);
@@ -346,7 +373,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     }
   }
 
-  async setUserRoles(data: UserRolesSetData, context: RepositoryContext): Promise<void> {
+  async setUserRoles(data: UserRolesSetData): Promise<void> {
     try {
       const validatedData = userRolesSetSchema.parse(data);
 
@@ -357,7 +384,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
         .where(inArray(roles.name, validatedData.roleNames));
 
       if (roleResults.length !== validatedData.roleNames.length) {
-        throw new DomainError('Some roles not found', 'NOT_FOUND');
+        throw new NotFoundError('Some roles not found');
       }
 
       const roleIds = roleResults.map((r) => r.id);
@@ -391,7 +418,7 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     }
   }
 
-  async updateUserRolesBulk(data: UserRolesBulkUpdate, context: RepositoryContext): Promise<void> {
+  async updateUserRolesBulk(data: UserRolesBulkUpdate): Promise<void> {
     try {
       const userId = userIdSchema.parse(data.userId);
       const roleIds = data.roleIds.map((id) => roleIdSchema.parse(id));
@@ -428,7 +455,10 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     try {
       const validUserId = userIdSchema.parse(userId);
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .select({ name: roles.name })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -478,7 +508,10 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
     try {
       const validUserId = userIdSchema.parse(userId);
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .select({ count: sql<number>`count(*)` })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -497,7 +530,10 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
       const validUserId = userIdSchema.parse(userId);
       const validRoleNames = roleNamesSchema.parse(roleNames);
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .select({ count: sql<number>`count(*)` })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -516,7 +552,10 @@ export class DrizzleRoleRepository extends BasePostgresRepository implements IRo
       const validUserId = userIdSchema.parse(userId);
       const validRoleNames = roleNamesSchema.parse(roleNames);
 
-      const result = await this.appContext.db
+      await this.initializeDatabase();
+      const db = await this.ensureDatabase();
+
+      const result = await db
         .select({ count: sql<number>`count(DISTINCT ${roles.name})` })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))

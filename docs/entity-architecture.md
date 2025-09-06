@@ -322,14 +322,14 @@ export class CourseService implements ICourseService {
     if (chapterData.title !== undefined) {
       await this.courseRepository.updateChapterBasicInfo(courseId, chapterId, {
         title: chapterData.title
-      }, { operatedBy: user.id });
+      });
     }
     
     // Handle itemIds updates - pass strings directly ✅
     if (chapterData.itemIds !== undefined) {
       await this.courseRepository.updateChapterItems(courseId, chapterId, {
         itemIds: chapterData.itemIds  // Strings - repository handles ObjectId conversion
-      }, { operatedBy: user.id });
+      });
     }
 
     this.appContext.logger.info('Chapter updated successfully', {
@@ -366,7 +366,7 @@ export class CourseService implements ICourseService {
     };
 
     // Pass domain object to repository - repository handles all ObjectId conversion ✅
-    const course = await this.courseRepository.create(courseData, { operatedBy: userId });
+    const course = await this.courseRepository.create(courseData);
     
     this.appContext.logger.info('Course created successfully', {
       courseId: course.id,
@@ -516,14 +516,14 @@ export class CourseService {
       })),
     };
 
-    return await this.courseRepository.create(courseData, { operatedBy: userId });
+    return await this.courseRepository.create(courseData);
   }
 
   async updateCourseOverview(courseId: string, assetId: string, userId: string): Promise<void> {
     // ❌ Service layer creating ObjectId
     await this.courseRepository.updateCourseOverview(courseId, {
       courseOverview: { type: 'asset', assetId: new ObjectId(assetId) } // MongoDB ObjectId!
-    }, { operatedBy: userId });
+    });
   }
 }
 
@@ -552,14 +552,14 @@ export class CourseService {
     };
 
     // ✅ Repository handles all ObjectId conversion internally
-    return await this.courseRepository.create(courseData, { operatedBy: userId });
+    return await this.courseRepository.create(courseData);
   }
 
   async updateCourseOverview(courseId: string, assetId: string, userId: string): Promise<void> {
     // ✅ Service passes domain types (strings)
     await this.courseRepository.updateCourseOverview(courseId, {
       courseOverview: { type: 'asset', assetId: assetId } // String - repository converts to ObjectId
-    }, { operatedBy: userId });
+    });
   }
 }
 
@@ -622,7 +622,7 @@ await this.courseRepository.update(courseId, {
   title: 'New Title',
   visibility: 'private',
   'chapters.$.title': 'New Chapter Title'  // MongoDB dot notation mixed in
-}, { operatedBy: user.id });
+});
 ```
 
 #### After: Dedicated Methods Pattern ✅
@@ -636,9 +636,9 @@ interface ICourseRepository {
 }
 
 // Service layer - clear, explicit operations
-await this.courseRepository.updateBasicInfo(courseId, { title: 'New Title' }, { operatedBy: user.id });
-await this.courseRepository.updateVisibility(courseId, { visibility: 'private' }, { operatedBy: user.id });
-await this.courseRepository.updateChapterBasicInfo(courseId, chapterId, { title: 'New Chapter Title' }, { operatedBy: user.id });
+await this.courseRepository.updateBasicInfo(courseId, { title: 'New Title' });
+await this.courseRepository.updateVisibility(courseId, { visibility: 'private' });
+await this.courseRepository.updateChapterBasicInfo(courseId, chapterId, { title: 'New Chapter Title' });
 ```
 
 ### Common Type Error Resolution

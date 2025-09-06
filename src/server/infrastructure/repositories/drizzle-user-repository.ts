@@ -727,25 +727,25 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       }
 
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        query = query.where(and(...conditions)) as typeof query;
       }
 
       // Group by user to aggregate roles
-      query = query.groupBy(users.id);
+      query = query.groupBy(users.id) as typeof query;
 
       // Handle role filtering with HAVING clause after grouping
       if (filter?.roles && filter.roles.length > 0) {
         query = query.having(
           sql`array_agg(${roles.name}) && ${filter.roles}`
-        );
+        ) as typeof query;
       }
 
       // Apply pagination
       if (options?.skip) {
-        query = query.offset(options.skip);
+        query = query.offset(options.skip) as typeof query;
       }
       if (options?.limit) {
-        query = query.limit(options.limit);
+        query = query.limit(options.limit) as typeof query;
       }
 
       const results = await query;
@@ -812,7 +812,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
 
         if (conditions.length > 0) {
-          query = query.where(and(inArray(users.id, subquery), ...conditions));
+          query = query.where(and(inArray(users.id, subquery), ...conditions)) as typeof query;
         }
 
         const [result] = await query;
@@ -841,7 +841,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
 
         if (conditions.length > 0) {
-          query = query.where(and(...conditions));
+          query = query.where(and(...conditions)) as typeof query;
         }
 
         const [result] = await query;
