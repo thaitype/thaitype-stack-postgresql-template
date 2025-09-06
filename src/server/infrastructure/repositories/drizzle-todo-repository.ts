@@ -12,7 +12,7 @@
 
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
-import { eq, and, desc, asc, count } from 'drizzle-orm';
+import { eq, and, desc, asc, count, SQL } from 'drizzle-orm';
 import { BaseDrizzleRepository } from './base-drizzle-repository';
 import { todos } from '~/server/infrastructure/db/schema';
 import * as Err from '~/server/lib/errors/domain-errors';
@@ -469,19 +469,19 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
 
       // Apply sorting (default to newest first)
       if (options?.sort?.createdAt === -1) {
-        query = query.orderBy(desc(todos.createdAt));
+        query = query.orderBy(desc(todos.createdAt)) as typeof query;
       } else if (options?.sort?.createdAt === 1) {
-        query = query.orderBy(asc(todos.createdAt));
+        query = query.orderBy(asc(todos.createdAt)) as typeof query;
       } else {
-        query = query.orderBy(desc(todos.createdAt));
+        query = query.orderBy(desc(todos.createdAt)) as typeof query;
       }
 
       // Apply pagination
       if (options?.limit) {
-        query = query.limit(options.limit);
+        query = query.limit(options.limit) as typeof query;
       }
       if (options?.skip) {
-        query = query.offset(options.skip);
+        query = query.offset(options.skip) as typeof query;
       }
 
       const todoList = await query;
@@ -544,7 +544,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
     try {
       const db = await this.ensureDatabase();
 
-      let whereCondition = eq(todos.userId, userId);
+      let whereCondition: SQL | undefined = eq(todos.userId, userId);
 
       if (filter?.completed !== undefined) {
         whereCondition = and(
@@ -556,7 +556,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
       const result = await db
         .select({ count: count() })
         .from(todos)
-        .where(whereCondition!);
+        .where(whereCondition);
 
       const todoCount = result[0]?.count ?? 0;
 
@@ -583,7 +583,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
     try {
       const db = await this.ensureDatabase();
 
-      let whereConditions = [];
+      const whereConditions = [];
 
       if (filter.userId) {
         whereConditions.push(eq(todos.userId, filter.userId));
@@ -596,19 +596,19 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
 
       // Apply where conditions
       if (whereConditions.length > 0) {
-        query = query.where(and(...whereConditions));
+        query = query.where(and(...whereConditions)) as typeof query;
       }
 
       // Apply sorting (default to newest first)
       const sortDirection = filter.sort?.createdAt === 1 ? asc(todos.createdAt) : desc(todos.createdAt);
-      query = query.orderBy(sortDirection);
+      query = query.orderBy(sortDirection) as typeof query;
 
       // Apply pagination  
       if (filter.limit) {
-        query = query.limit(filter.limit);
+        query = query.limit(filter.limit) as typeof query;
       }
       if (filter.skip) {
-        query = query.offset(filter.skip);
+        query = query.offset(filter.skip) as typeof query;
       }
 
       const todoList = await query;

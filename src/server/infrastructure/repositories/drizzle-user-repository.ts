@@ -9,7 +9,7 @@
  */
 
 import type { ILogger } from '@thaitype/core-utils';
-import { eq, and, ilike, inArray } from 'drizzle-orm';
+import { eq, and, ilike, inArray, SQL } from 'drizzle-orm';
 import type { User } from '~/server/domain/models';
 import type { IUserRepository } from '~/server/domain/repositories/user-repository';
 import type {
@@ -45,7 +45,7 @@ import * as Err from '~/server/lib/errors/domain-errors';
  * Drizzle implementation of User Repository
  */
 export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> implements IUserRepository {
-  
+
   constructor() {
     super('User');
   }
@@ -64,7 +64,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
 
     return {
       info: logFn('info'),
-      warn: logFn('warn'), 
+      warn: logFn('warn'),
       error: logFn('error'),
       debug: logFn('debug'),
       log: logFn('log'),
@@ -83,10 +83,10 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserCreateSchema.parse(input);
-      
+
       this.getLogger().info(
         'Creating user record',
-        { 
+        {
           operation: 'create',
           entityName: this.entityName,
           email: validatedData.email,
@@ -94,14 +94,14 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       );
 
       const [created] = await db.insert(users).values(validatedData).returning();
-      
+
       if (!created) {
         throw new Err.DatabaseError('Failed to create user record');
       }
 
       this.getLogger().info(
         'User record created successfully',
-        { 
+        {
           operation: 'create',
           entityName: this.entityName,
           id: created.id,
@@ -112,7 +112,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     } catch (error) {
       this.getLogger().error(
         'Failed to create user record',
-        { 
+        {
           operation: 'create',
           entityName: this.entityName,
           error: (error as Error).message,
@@ -129,7 +129,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
 
       this.getLogger().info(
         'Finding user by ID',
-        { 
+        {
           operation: 'findById',
           entityName: this.entityName,
           id,
@@ -137,11 +137,11 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       );
 
       const [user] = await db.select().from(users).where(eq(users.id, id));
-      
+
       if (!user) {
         this.getLogger().info(
           'User not found',
-          { 
+          {
             operation: 'findById',
             entityName: this.entityName,
             id,
@@ -154,7 +154,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     } catch (error) {
       this.getLogger().error(
         'Failed to find user by ID',
-        { 
+        {
           operation: 'findById',
           entityName: this.entityName,
           id,
@@ -172,7 +172,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
 
       this.getLogger().info(
         'Deleting user record',
-        { 
+        {
           operation: 'delete',
           entityName: this.entityName,
           id,
@@ -183,7 +183,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
 
       this.getLogger().info(
         'User record deleted successfully',
-        { 
+        {
           operation: 'delete',
           entityName: this.entityName,
           id,
@@ -192,7 +192,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     } catch (error) {
       this.getLogger().error(
         'Failed to delete user record',
-        { 
+        {
           operation: 'delete',
           entityName: this.entityName,
           id,
@@ -213,10 +213,10 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserBasicInfoUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
         'Updating user basic info',
-        { 
+        {
           operation: 'updateBasicInfo',
           entityName: this.entityName,
           id,
@@ -227,7 +227,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
 
       this.getLogger().info(
         'User basic info updated successfully',
-        { 
+        {
           operation: 'updateBasicInfo',
           entityName: this.entityName,
           id,
@@ -236,7 +236,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
     } catch (error) {
       this.getLogger().error(
         'Failed to update user basic info',
-        { 
+        {
           operation: 'updateBasicInfo',
           entityName: this.entityName,
           id,
@@ -253,35 +253,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserRolesUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user roles',
+        {
           operation: 'updateRoles',
           entityName: this.entityName,
           id,
-        },
-        'Updating user roles'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User roles updated successfully',
+        {
           operation: 'updateRoles',
           entityName: this.entityName,
           id,
-        },
-        'User roles updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user roles',
+        {
           operation: 'updateRoles',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user roles'
+        }
       );
       throw error;
     }
@@ -293,35 +293,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserEmailUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user email',
+        {
           operation: 'updateEmail',
           entityName: this.entityName,
           id,
-        },
-        'Updating user email'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User email updated successfully',
+        {
           operation: 'updateEmail',
           entityName: this.entityName,
           id,
-        },
-        'User email updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user email',
+        {
           operation: 'updateEmail',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user email'
+        }
       );
       throw error;
     }
@@ -333,35 +333,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserStatusUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user status',
+        {
           operation: 'updateStatus',
           entityName: this.entityName,
           id,
-        },
-        'Updating user status'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User status updated successfully',
+        {
           operation: 'updateStatus',
           entityName: this.entityName,
           id,
-        },
-        'User status updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user status',
+        {
           operation: 'updateStatus',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user status'
+        }
       );
       throw error;
     }
@@ -373,49 +373,49 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserProfileUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user profile',
+        {
           operation: 'updateProfile',
           entityName: this.entityName,
           id,
-        },
-        'Updating user profile'
+        }
       );
 
       const [updated] = await db.update(users).set(validatedData).where(eq(users.id, id)).returning();
 
       if (!updated) {
         this.getLogger().info(
-          { 
+          'User not found for profile update',
+          {
             operation: 'updateProfile',
             entityName: this.entityName,
             id,
-            },
-          'User not found for profile update'
+          }
         );
         return null;
       }
 
       this.getLogger().info(
-        { 
+        'User profile updated successfully',
+        {
           operation: 'updateProfile',
           entityName: this.entityName,
           id,
-        },
-        'User profile updated successfully'
+        }
       );
 
       return this.mapToUser(updated);
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user profile',
+        {
           operation: 'updateProfile',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user profile'
+        }
       );
       throw error;
     }
@@ -427,35 +427,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserNameUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user name',
+        {
           operation: 'updateName',
           entityName: this.entityName,
           id,
-        },
-        'Updating user name'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User name updated successfully',
+        {
           operation: 'updateName',
           entityName: this.entityName,
           id,
-        },
-        'User name updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user name',
+        {
           operation: 'updateName',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user name'
+        }
       );
       throw error;
     }
@@ -467,35 +467,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserBioUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user bio',
+        {
           operation: 'updateBio',
           entityName: this.entityName,
           id,
-        },
-        'Updating user bio'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User bio updated successfully',
+        {
           operation: 'updateBio',
           entityName: this.entityName,
           id,
-        },
-        'User bio updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user bio',
+        {
           operation: 'updateBio',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user bio'
+        }
       );
       throw error;
     }
@@ -507,35 +507,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserAvatarUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user avatar',
+        {
           operation: 'updateAvatar',
           entityName: this.entityName,
           id,
-        },
-        'Updating user avatar'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User avatar updated successfully',
+        {
           operation: 'updateAvatar',
           entityName: this.entityName,
           id,
-        },
-        'User avatar updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user avatar',
+        {
           operation: 'updateAvatar',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user avatar'
+        }
       );
       throw error;
     }
@@ -547,35 +547,35 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       const validatedData = RepoUserWebsiteUpdateSchema.parse(input);
-      
+
       this.getLogger().info(
-        { 
+        'Updating user website',
+        {
           operation: 'updateWebsite',
           entityName: this.entityName,
           id,
-        },
-        'Updating user website'
+        }
       );
 
       await db.update(users).set(validatedData).where(eq(users.id, id));
 
       this.getLogger().info(
-        { 
+        'User website updated successfully',
+        {
           operation: 'updateWebsite',
           entityName: this.entityName,
           id,
-        },
-        'User website updated successfully'
+        }
       );
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to update user website',
+        {
           operation: 'updateWebsite',
           entityName: this.entityName,
           id,
           error: (error as Error).message,
-        },
-        'Failed to update user website'
+        }
       );
       throw error;
     }
@@ -591,24 +591,24 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       this.getLogger().info(
-        { 
+        'Finding user by email',
+        {
           operation: 'findByEmail',
           entityName: this.entityName,
           email,
-        },
-        'Finding user by email'
+        }
       );
 
       const [user] = await db.select().from(users).where(eq(users.email, email));
-      
+
       if (!user) {
         this.getLogger().info(
-          { 
+          'User not found by email',
+          {
             operation: 'findByEmail',
             entityName: this.entityName,
             email,
-          },
-          'User not found by email'
+          }
         );
         return null;
       }
@@ -616,13 +616,13 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       return this.mapToUser(user);
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to find user by email',
+        {
           operation: 'findByEmail',
           entityName: this.entityName,
           email,
           error: (error as Error).message,
-        },
-        'Failed to find user by email'
+        }
       );
       throw error;
     }
@@ -641,13 +641,13 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       this.getLogger().info(
-        { 
+        'Finding all users with filter',
+        {
           operation: 'findAll',
           entityName: this.entityName,
           filter,
           options,
-        },
-        'Finding all users with filter'
+        }
       );
 
       let query = db.select().from(users);
@@ -666,39 +666,39 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       }
 
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        query = query.where(and(...conditions)) as typeof query;
       }
 
       // Apply pagination
       if (options?.skip) {
-        query = query.offset(options.skip);
+        query = query.offset(options.skip) as typeof query;
       }
       if (options?.limit) {
-        query = query.limit(options.limit);
+        query = query.limit(options.limit) as typeof query;
       }
 
       const results = await query;
 
       this.getLogger().info(
-        { 
+        'Users found successfully',
+        {
           operation: 'findAll',
           entityName: this.entityName,
           count: results.length,
-        },
-        'Users found successfully'
+        }
       );
 
       return results.map(user => this.mapToUser(user));
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to find users',
+        {
           operation: 'findAll',
           entityName: this.entityName,
           filter,
           options,
           error: (error as Error).message,
-        },
-        'Failed to find users'
+        }
       );
       throw error;
     }
@@ -710,18 +710,18 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const db = await this.ensureDatabase();
 
       this.getLogger().info(
-        { 
+        'Counting users with filter',
+        {
           operation: 'count',
           entityName: this.entityName,
           filter,
-        },
-        'Counting users with filter'
+        }
       );
 
-      let query = db.select({ count: users.id }).from(users);
+      let query = db.select({ count: users.id }).from(users)
 
       // Apply filters
-      const conditions = [];
+      const conditions: SQL[] = [];
       if (filter?.email) {
         conditions.push(ilike(users.email, `%${filter.email}%`));
       }
@@ -733,31 +733,31 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       }
 
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        query = query.where(and(...conditions)) as typeof query;
       }
 
       const [result] = await query;
-      const count = result?.count || 0;
+      const count = Number(result?.count) || 0;
 
       this.getLogger().info(
-        { 
+        'Users counted successfully',
+        {
           operation: 'count',
           entityName: this.entityName,
           count,
-        },
-        'Users counted successfully'
+        }
       );
 
       return count;
     } catch (error) {
       this.getLogger().error(
-        { 
+        'Failed to count users',
+        {
           operation: 'count',
           entityName: this.entityName,
           filter,
           error: (error as Error).message,
-        },
-        'Failed to count users'
+        }
       );
       throw error;
     }
