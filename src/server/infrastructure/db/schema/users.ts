@@ -1,20 +1,15 @@
-import { boolean, pgEnum, pgTable, text, varchar } from 'drizzle-orm/pg-core';
+import { boolean, pgTable, text, varchar } from 'drizzle-orm/pg-core';
 import { baseFields, type BaseFields } from './base';
 
 /**
- * User roles enumeration
- */
-export const userRoleEnum = pgEnum('user_role', ['admin', 'user']);
-
-/**
  * Users table schema with minimal fields
+ * Roles are now normalized in separate roles/userRoles tables
  */
 export const users = pgTable('users', {
   ...baseFields,
   
   email: varchar('email', { length: 255 }).notNull().unique(),
   name: varchar('name', { length: 255 }).notNull(),
-  roles: userRoleEnum('roles').array().notNull().default(['user']),
   bio: text('bio'),
   avatar: text('avatar'),
   website: text('website'),
@@ -38,11 +33,12 @@ export type DbUserUpdate = Partial<Omit<DbUserEntity, 'id' | 'createdAt'>>;
 
 /**
  * Domain user model - string-based for service layer
+ * Roles are fetched via JOINs and aggregated as string array
  */
 export interface User extends BaseFields {
   email: string;
   name: string;
-  roles: ('admin' | 'user')[];
+  roles: string[];
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;

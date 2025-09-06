@@ -9,18 +9,22 @@
 // Schema tables
 export { users, userRoleEnum } from './users';
 export { todos, todosRelations } from './todos';
+export { roles, userRoles } from './roles';
 
 // Re-import for schema object
 import { users } from './users';
 import { todos, todosRelations } from './todos';
+import { roles, userRoles } from './roles';
 
 // Database entity types (with database-specific fields)
 export type { DbUserEntity, DbUserInsert, DbUserUpdate } from './users';
 export type { DbTodoEntity, DbTodoInsert, DbTodoUpdate } from './todos';
+export type { DbRoleEntity, DbRoleInsert, DbUserRoleEntity, DbUserRoleInsert } from './roles';
 
 // Domain model types (for service layer - string-based IDs)
 export type { User } from './users';
 export type { Todo } from './todos';
+export type { Role } from './roles';
 
 // Base types
 export type { BaseFields } from './base';
@@ -31,4 +35,6 @@ export const schema = {
   users,
   todos,
   todosRelations,
+  roles,
+  userRoles,
 } as const;

@@ -9,7 +9,7 @@
  */
 
 import type { AppContext } from '~/server/context/app-context';
-import { eq, and, ilike, inArray, SQL } from 'drizzle-orm';
+import { eq, and, ilike, inArray, SQL, sql } from 'drizzle-orm';
 import type { User } from '~/server/domain/models';
 import type { IUserRepository } from '~/server/domain/repositories/user-repository';
 import type {
@@ -25,7 +25,7 @@ import type {
   UserWebsiteUpdate,
 } from '~/server/domain/repositories/types/user-repository-types';
 import { BaseDrizzleRepository } from './base-drizzle-repository';
-import { users } from '../db/schema';
+import { users, roles, userRoles } from '../db/schema';
 import type { DbUserEntity } from '../entities';
 import {
   RepoUserCreateSchema,
@@ -117,7 +117,28 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
       );
 
-      const [user] = await db.select().from(users).where(eq(users.id, id));
+      // Get user with aggregated roles via JOIN
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          bio: users.bio,
+          avatar: users.avatar,
+          website: users.website,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          roles: sql<string[]>`array_agg(${roles.name}) filter (where ${roles.name} is not null)`,
+        })
+        .from(users)
+        .leftJoin(userRoles, eq(users.id, userRoles.userId))
+        .leftJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(eq(users.id, id))
+        .groupBy(users.id)
+        .limit(1);
+
+      const user = result[0];
 
       if (!user) {
         this.getLogger().info(
@@ -131,7 +152,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         return null;
       }
 
-      return this.mapToUser(user);
+      return this.mapToUserWithRoles(user);
     } catch (error) {
       this.getLogger().error(
         'Failed to find user by ID',
@@ -236,7 +257,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       const validatedData = RepoUserRolesUpdateSchema.parse(input);
 
       this.getLogger().info(
-        'Updating user roles',
+        'Updating user roles via normalized tables',
         {
           operation: 'updateRoles',
           entityName: this.entityName,
@@ -244,10 +265,36 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
       );
 
-      await db.update(users).set(validatedData).where(eq(users.id, id));
+      // Convert role names to IDs
+      const roleResults = await db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(inArray(roles.name, validatedData.roles));
+
+      if (roleResults.length !== validatedData.roles.length) {
+        throw new Error('Some roles not found');
+      }
+
+      const roleIds = roleResults.map(r => r.id);
+
+      // Use transaction to ensure atomicity
+      await db.transaction(async (tx) => {
+        // Remove all existing roles for this user
+        await tx.delete(userRoles).where(eq(userRoles.userId, id));
+
+        // Add new roles if any
+        if (roleIds.length > 0) {
+          await tx.insert(userRoles).values(
+            roleIds.map(roleId => ({
+              userId: id,
+              roleId,
+            }))
+          );
+        }
+      });
 
       this.getLogger().info(
-        'User roles updated successfully',
+        'User roles updated successfully via normalized tables',
         {
           operation: 'updateRoles',
           entityName: this.entityName,
@@ -580,7 +627,28 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
       );
 
-      const [user] = await db.select().from(users).where(eq(users.email, email));
+      // Get user with aggregated roles via JOIN
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          bio: users.bio,
+          avatar: users.avatar,
+          website: users.website,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          roles: sql<string[]>`array_agg(${roles.name}) filter (where ${roles.name} is not null)`,
+        })
+        .from(users)
+        .leftJoin(userRoles, eq(users.id, userRoles.userId))
+        .leftJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(eq(users.email, email))
+        .groupBy(users.id)
+        .limit(1);
+
+      const user = result[0];
 
       if (!user) {
         this.getLogger().info(
@@ -594,7 +662,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         return null;
       }
 
-      return this.mapToUser(user);
+      return this.mapToUserWithRoles(user);
     } catch (error) {
       this.getLogger().error(
         'Failed to find user by email',
@@ -631,7 +699,23 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
       );
 
-      let query = db.select().from(users);
+      // Base query with role aggregation
+      let query = db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          bio: users.bio,
+          avatar: users.avatar,
+          website: users.website,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          roles: sql<string[]>`array_agg(${roles.name}) filter (where ${roles.name} is not null)`,
+        })
+        .from(users)
+        .leftJoin(userRoles, eq(users.id, userRoles.userId))
+        .leftJoin(roles, eq(userRoles.roleId, roles.id));
 
       // Apply filters
       const conditions = [];
@@ -641,21 +725,27 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       if (filter?.isActive !== undefined) {
         conditions.push(eq(users.isActive, filter.isActive));
       }
-      if (filter?.roles && filter.roles.length > 0) {
-        // For array overlap, we need to check if any of the filter roles match
-        conditions.push(inArray(users.roles, filter.roles));
-      }
 
       if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as typeof query;
+        query = query.where(and(...conditions));
+      }
+
+      // Group by user to aggregate roles
+      query = query.groupBy(users.id);
+
+      // Handle role filtering with HAVING clause after grouping
+      if (filter?.roles && filter.roles.length > 0) {
+        query = query.having(
+          sql`array_agg(${roles.name}) && ${filter.roles}`
+        );
       }
 
       // Apply pagination
       if (options?.skip) {
-        query = query.offset(options.skip) as typeof query;
+        query = query.offset(options.skip);
       }
       if (options?.limit) {
-        query = query.limit(options.limit) as typeof query;
+        query = query.limit(options.limit);
       }
 
       const results = await query;
@@ -669,7 +759,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
       );
 
-      return results.map(user => this.mapToUser(user));
+      return results.map(user => this.mapToUserWithRoles(user));
     } catch (error) {
       this.getLogger().error(
         'Failed to find users',
@@ -699,37 +789,75 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
         }
       );
 
-      let query = db.select({ count: users.id }).from(users)
-
-      // Apply filters
-      const conditions: SQL[] = [];
-      if (filter?.email) {
-        conditions.push(ilike(users.email, `%${filter.email}%`));
-      }
-      if (filter?.isActive !== undefined) {
-        conditions.push(eq(users.isActive, filter.isActive));
-      }
+      // For counting with role filters, we need to use a subquery
       if (filter?.roles && filter.roles.length > 0) {
-        conditions.push(inArray(users.roles, filter.roles));
-      }
+        const subquery = db
+          .selectDistinct({ userId: userRoles.userId })
+          .from(userRoles)
+          .innerJoin(roles, eq(userRoles.roleId, roles.id))
+          .where(inArray(roles.name, filter.roles));
 
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as typeof query;
-      }
+        let query = db
+          .select({ count: sql<number>`count(*)` })
+          .from(users)
+          .where(inArray(users.id, subquery));
 
-      const [result] = await query;
-      const count = Number(result?.count) || 0;
-
-      this.getLogger().info(
-        'Users counted successfully',
-        {
-          operation: 'count',
-          entityName: this.entityName,
-          count,
+        // Apply other filters
+        const conditions: SQL[] = [];
+        if (filter?.email) {
+          conditions.push(ilike(users.email, `%${filter.email}%`));
         }
-      );
+        if (filter?.isActive !== undefined) {
+          conditions.push(eq(users.isActive, filter.isActive));
+        }
 
-      return count;
+        if (conditions.length > 0) {
+          query = query.where(and(inArray(users.id, subquery), ...conditions));
+        }
+
+        const [result] = await query;
+        const count = Number(result?.count) || 0;
+
+        this.getLogger().info(
+          'Users counted successfully with role filter',
+          {
+            operation: 'count',
+            entityName: this.entityName,
+            count,
+          }
+        );
+
+        return count;
+      } else {
+        // Simple count without role filtering
+        let query = db.select({ count: sql<number>`count(*)` }).from(users);
+
+        const conditions: SQL[] = [];
+        if (filter?.email) {
+          conditions.push(ilike(users.email, `%${filter.email}%`));
+        }
+        if (filter?.isActive !== undefined) {
+          conditions.push(eq(users.isActive, filter.isActive));
+        }
+
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+
+        const [result] = await query;
+        const count = Number(result?.count) || 0;
+
+        this.getLogger().info(
+          'Users counted successfully',
+          {
+            operation: 'count',
+            entityName: this.entityName,
+            count,
+          }
+        );
+
+        return count;
+      }
     } catch (error) {
       this.getLogger().error(
         'Failed to count users',
@@ -757,13 +885,42 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       id: entity.id,
       email: entity.email,
       name: entity.name,
-      roles: entity.roles,
+      roles: [], // Roles removed from user table, will be empty
       bio: entity.bio,
       avatar: entity.avatar,
       website: entity.website,
       isActive: entity.isActive,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
+    };
+  }
+
+  /**
+   * Map joined query result with aggregated roles to domain model
+   */
+  private mapToUserWithRoles(result: {
+    id: string;
+    email: string;
+    name: string;
+    bio: string | null;
+    avatar: string | null;
+    website: string | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    roles: string[] | null;
+  }): User {
+    return {
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      roles: result.roles || [], // Handle null case when user has no roles
+      bio: result.bio,
+      avatar: result.avatar,
+      website: result.website,
+      isActive: result.isActive,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
     };
   }
 }
