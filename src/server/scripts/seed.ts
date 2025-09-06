@@ -4,7 +4,7 @@
  * Seeds the database with sample data for development and testing.
  * This script can be run to populate a fresh database with realistic data.
  */
-
+import 'dotenv/config';
 import { getDatabase } from '../lib/db';
 import { initializeDatabaseConfig } from '../lib/db';
 import { createAppConfig } from '../config/types';

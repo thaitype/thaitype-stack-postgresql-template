@@ -106,11 +106,11 @@ PORT="3000"
 
 ### 3. Database Setup
 ```bash
-# Generate migration files
+# Generate migration files from schema
 pnpm db:generate
 
-# Run migrations to create tables
-pnpm db:push
+# Apply migrations to create database tables
+pnpm db:migrate
 
 # Seed the database with sample data (optional)
 pnpm db:seed
@@ -123,6 +123,130 @@ pnpm dev
 
 Visit [http://localhost:3000](http://localhost:3000) to see your app!
 
+## 🗄️ Database Setup Guide
+
+### Understanding Database Commands
+
+This template uses **Drizzle ORM** with **PostgreSQL**. Here's the recommended workflow:
+
+#### 1. Migration-Based Workflow (Recommended for Production)
+```bash
+# 1. Generate migration files from your schema changes
+pnpm db:generate
+
+# 2. Review generated migrations in ./drizzle/ directory
+# 3. Apply migrations to database
+pnpm db:migrate
+
+# 4. Seed with sample data (optional)
+pnpm db:seed
+```
+
+#### 2. Push Workflow (Development Only)
+```bash
+# Push schema directly to database (bypasses migrations)
+pnpm db:push
+
+# Seed with sample data (optional)  
+pnpm db:seed
+```
+
+### First Time Setup
+
+1. **Create PostgreSQL Database**
+   ```bash
+   # Using psql (if PostgreSQL is installed locally)
+   createdb todoapp
+   
+   # Or connect to your cloud database provider
+   # Update DATABASE_URL in .env with your connection string
+   ```
+
+2. **Set Up Schema**
+   ```bash
+   # Generate initial migration files
+   pnpm db:generate
+   
+   # Apply migrations to create tables
+   pnpm db:migrate
+   ```
+
+3. **Add Sample Data**
+   ```bash
+   # Populate database with test data
+   pnpm db:seed
+   ```
+
+### Sample Data Overview
+
+Running `pnpm db:seed` creates:
+
+- **2 Roles**: `admin`, `user`  
+- **2 Users**: 
+  - `john@example.com` (User role)
+  - `admin@example.com` (Admin + User roles)
+- **5 Sample Todos**: Mix of completed and pending tasks
+- **Role Assignments**: Users connected to roles via junction table
+
+### Database Management
+
+#### View Database
+```bash
+# Open Drizzle Studio - visual database browser
+pnpm db:studio
+# Opens at http://localhost:4983
+```
+
+#### Reset Database (Development)
+```bash
+# WARNING: This destroys all data
+pnpm db:drop
+
+# Recreate schema
+pnpm db:migrate
+
+# Add sample data
+pnpm db:seed
+```
+
+#### Migration vs Push
+
+| Command | Use Case | Description |
+|---------|----------|-------------|
+| `db:migrate` | **Production** | Applies versioned migrations, maintains history |
+| `db:push` | **Development** | Direct schema sync, no migration files |
+
+### Troubleshooting
+
+#### "relation does not exist" Error
+```bash
+# This means tables haven't been created yet
+# Solution: Run migrations first
+pnpm db:migrate
+pnpm db:seed
+```
+
+#### Database Connection Errors
+1. Check your `DATABASE_URL` in `.env`
+2. Ensure PostgreSQL is running
+3. Verify database exists and credentials are correct
+
+#### Migration Conflicts
+```bash
+# Reset and start fresh (loses all data)
+pnpm db:drop
+pnpm db:generate  
+pnpm db:migrate
+pnpm db:seed
+```
+
+#### Environment Variables Not Loaded
+The seed script automatically loads `.env` file. Ensure your `.env` contains:
+```env
+NODE_ENV=development
+DATABASE_URL=postgresql://username:password@localhost:5432/dbname
+```
+
 ## 📋 Development Commands
 
 ```bash
@@ -133,10 +257,12 @@ pnpm start            # Start production server
 pnpm preview          # Build and start production server
 
 # Database
-pnpm db:generate      # Generate migration files
-pnpm db:push          # Push schema to database
+pnpm db:generate      # Generate migration files from schema
+pnpm db:migrate       # Apply migrations to create/update tables
+pnpm db:push          # Push schema directly (development only)
 pnpm db:studio        # Open Drizzle Studio (database GUI)
 pnpm db:seed          # Seed database with sample data
+pnpm db:drop          # Drop all database tables (destructive)
 
 # Code Quality
 pnpm lint             # Run ESLint
@@ -227,13 +353,40 @@ function MyComponent() {
 ```typescript
 interface DbUserEntity {
   id: string;          // UUID primary key (auto-generated)
-  name: string;
-  email: string;
-  roles: ('admin' | 'user')[];
-  isActive: boolean;
+  email: string;       // Unique email address
+  name: string;        // User display name
+  bio?: string;        // Optional user biography
+  avatar?: string;     // Optional avatar URL
+  website?: string;    // Optional website URL  
+  isActive: boolean;   // Account status
   // Auto-managed timestamps
   createdAt: Date;     // Auto-set on creation
   updatedAt: Date;     // Auto-updated on changes
+}
+```
+
+### Roles Table
+```typescript
+interface DbRoleEntity {
+  id: string;          // UUID primary key (auto-generated)
+  name: string;        // Unique role name (e.g., 'admin', 'user')
+  description?: string; // Optional role description
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
+}
+```
+
+### User Roles Junction Table
+```typescript
+interface DbUserRoleEntity {
+  id: string;          // UUID primary key (auto-generated)
+  userId: string;      // Foreign key to users.id
+  roleId: string;      // Foreign key to roles.id
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
+  // Unique constraint on (userId, roleId)
 }
 ```
 
@@ -241,9 +394,9 @@ interface DbUserEntity {
 ```typescript  
 interface DbTodoEntity {
   id: string;          // UUID primary key (auto-generated)
-  title: string;
-  description?: string;
-  completed: boolean;
+  title: string;       // Todo title
+  description?: string; // Optional todo description
+  completed: boolean;  // Completion status
   userId: string;      // Foreign key to users.id
   // Auto-managed timestamps
   createdAt: Date;     // Auto-set on creation
@@ -251,10 +404,32 @@ interface DbTodoEntity {
 }
 ```
 
-All entities include automatic timestamp management:
-- `createdAt`: Set automatically on creation
-- `updatedAt`: Updated automatically on any change
-- Native UUID generation for primary keys
+### Domain Models (Service Layer)
+
+The service layer works with normalized domain models:
+
+```typescript
+interface User {
+  id: string;          // String representation of UUID
+  email: string;
+  name: string;
+  roles: string[];     // Array of role names (e.g., ['admin', 'user'])
+  bio?: string;
+  avatar?: string;
+  website?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Database Features
+
+- **UUID Primary Keys**: All tables use UUID for primary keys
+- **Automatic Timestamps**: `createdAt` and `updatedAt` managed automatically
+- **Normalized Roles**: Many-to-many relationship between users and roles
+- **Foreign Key Constraints**: Referential integrity enforced
+- **Unique Constraints**: Email uniqueness, role name uniqueness, user-role pairs
 
 ## 🚀 Deployment
 
