@@ -17,7 +17,9 @@ async function runMigrations() {
     // Create PostgreSQL client for migrations
     const migrationClient = postgres(env.DATABASE_URL, { 
       max: 1,
-      onnotice: () => {}, // Suppress PostgreSQL notices during migration
+      onnotice: () => {
+        // Suppress PostgreSQL notices during migration - intentionally empty
+      },
     });
 
     const db = drizzle(migrationClient);

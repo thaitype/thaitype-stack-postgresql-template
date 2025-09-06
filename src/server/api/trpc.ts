@@ -12,7 +12,6 @@ import { ZodError } from "zod";
 
 import { auth } from "~/server/lib/auth";
 import { createContainer } from "~/server/context/app-context";
-import { env } from "~/env";
 
 /**
  * 1. CONTEXT

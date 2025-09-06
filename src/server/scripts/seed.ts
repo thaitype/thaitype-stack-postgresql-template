@@ -5,7 +5,6 @@
  * This script can be run to populate a fresh database with realistic data.
  */
 
-import { eq } from 'drizzle-orm';
 import { getDatabase } from '../lib/db';
 import { initializeDatabaseConfig } from '../lib/db';
 import { createAppConfig } from '../config/types';

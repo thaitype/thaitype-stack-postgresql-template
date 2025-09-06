@@ -9,7 +9,7 @@
  */
 
 import type { AppContext } from '~/server/context/app-context';
-import { eq, and, ilike, inArray, SQL, sql } from 'drizzle-orm';
+import { eq, and, ilike, inArray, type SQL, sql } from 'drizzle-orm';
 import type { User } from '~/server/domain/models';
 import type { IUserRepository } from '~/server/domain/repositories/user-repository';
 import type {
@@ -44,7 +44,7 @@ import * as Err from '~/server/lib/errors/domain-errors';
 /**
  * Drizzle implementation of User Repository
  */
-export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> implements IUserRepository {
+export class DrizzleUserRepository extends BaseDrizzleRepository implements IUserRepository {
 
   constructor(private appContext: AppContext) {
     super('User');
@@ -910,7 +910,7 @@ export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> i
       id: result.id,
       email: result.email,
       name: result.name,
-      roles: result.roles || [], // Handle null case when user has no roles
+      roles: result.roles ?? [], // Handle null case when user has no roles
       bio: result.bio,
       avatar: result.avatar,
       website: result.website,

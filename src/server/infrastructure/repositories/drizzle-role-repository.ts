@@ -11,13 +11,10 @@ import { BaseDrizzleRepository } from './base-drizzle-repository';
 import type { IRoleRepository } from '~/server/domain/repositories/role-repository';
 import type { Role } from '~/server/infrastructure/db/schema';
 import type { AppContext } from '~/server/context/app-context';
-import { getDatabase } from '~/server/lib/db';
 import {
   roles,
   userRoles,
-  users,
   type DbRoleEntity,
-  type DbUserRoleEntity,
 } from '~/server/infrastructure/db/schema';
 import {
   type RoleCreateRequest,
@@ -31,7 +28,6 @@ import {
   type RoleFilterQuery,
   type UserRoleFilterQuery,
 } from '~/server/domain/repositories/types/role-repository-types';
-import { matches } from '~/server/lib/validation/zod-utils';
 import { z } from 'zod';
 import { NotFoundError, ValidationError } from '~/server/lib/errors/domain-errors';
 
@@ -60,7 +56,7 @@ const userRolesSetSchema = z.object({
   roleNames: roleNamesSchema,
 }) satisfies z.ZodType<UserRolesSetData>;
 
-export class DrizzleRoleRepository extends BaseDrizzleRepository<Role> implements IRoleRepository {
+export class DrizzleRoleRepository extends BaseDrizzleRepository implements IRoleRepository {
   constructor(private appContext: AppContext) {
     super('Role');
   }

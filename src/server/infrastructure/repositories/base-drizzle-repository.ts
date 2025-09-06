@@ -1,14 +1,12 @@
 import type { ILogger } from '@thaitype/core-utils';
 import { eq } from 'drizzle-orm';
-import * as Err from '~/server/lib/errors/domain-errors';
 import { getDatabase } from '~/server/lib/db';
-import type { BaseFields } from '../db/schema/base';
 
 /**
  * Base Drizzle Repository Class
  * Simple CRUD operations without audit logging
  */
-export abstract class BaseDrizzleRepository<TEntity extends BaseFields> {
+export abstract class BaseDrizzleRepository {
   protected db?: Awaited<ReturnType<typeof getDatabase>>;
   protected entityName: string;
 
@@ -20,9 +18,7 @@ export abstract class BaseDrizzleRepository<TEntity extends BaseFields> {
    * Initialize database connection
    */
   protected async initializeDatabase(): Promise<void> {
-    if (!this.db) {
-      this.db = await getDatabase();
-    }
+    this.db ??= await getDatabase();
   }
 
   /**
@@ -46,7 +42,8 @@ export abstract class BaseDrizzleRepository<TEntity extends BaseFields> {
   /**
    * Get where clause for record by ID
    */
-  protected getByIdWhere<T extends { id: any }>(table: T, id: string): any {
-    return eq(table.id, id);
+  protected getByIdWhere(table: Record<string, unknown>, id: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+    return eq((table as any).id, id);
   }
 }

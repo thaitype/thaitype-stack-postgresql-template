@@ -12,7 +12,7 @@
 
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
-import { eq, and, desc, asc, count, SQL } from 'drizzle-orm';
+import { eq, and, desc, asc, count, type SQL } from 'drizzle-orm';
 import { BaseDrizzleRepository } from './base-drizzle-repository';
 import { todos } from '~/server/infrastructure/db/schema';
 import * as Err from '~/server/lib/errors/domain-errors';
@@ -36,7 +36,7 @@ import type {
   TodoFilterQuery,
 } from '~/server/domain/repositories/types/todo-repository-types';
 
-export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implements ITodoRepository {
+export class DrizzleTodoRepository extends BaseDrizzleRepository implements ITodoRepository {
   constructor(private appContext: AppContext) {
     super('todos');
   }
@@ -223,7 +223,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
-      const updateFields: any = {};
+      const updateFields: { title?: string; description?: string | null } = {};
       if (validatedData.title !== undefined) updateFields.title = validatedData.title;
       if (validatedData.description !== undefined) updateFields.description = validatedData.description;
 

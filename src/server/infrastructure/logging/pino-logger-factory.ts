@@ -5,6 +5,6 @@ import { createLogger } from './logger-factory';
 
 // Export a default logger instance for repository usage
 export const logger = createLogger({ 
-  environment: (process.env.NODE_ENV as 'development' | 'production' | 'test') ?? 'development',
+  environment: process.env.NODE_ENV ?? 'development',
   level: 'info'
 });
