@@ -58,7 +58,7 @@ export async function createContainer(): Promise<ServiceContainer> {
 
   // Create repositories (Drizzle will handle database connection internally)
   const todoRepository: ITodoRepository = new DrizzleTodoRepository(appContext);
-  const userRepository: IUserRepository = new DrizzleUserRepository();
+  const userRepository: IUserRepository = new DrizzleUserRepository(appContext);
 
   // Create services
   const userService = new UserService(appContext, userRepository);

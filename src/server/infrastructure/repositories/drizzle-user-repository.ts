@@ -8,7 +8,7 @@
  * 4. Type-safe with entity-derived types
  */
 
-import type { ILogger } from '@thaitype/core-utils';
+import type { AppContext } from '~/server/context/app-context';
 import { eq, and, ilike, inArray, SQL } from 'drizzle-orm';
 import type { User } from '~/server/domain/models';
 import type { IUserRepository } from '~/server/domain/repositories/user-repository';
@@ -46,31 +46,12 @@ import * as Err from '~/server/lib/errors/domain-errors';
  */
 export class DrizzleUserRepository extends BaseDrizzleRepository<DbUserEntity> implements IUserRepository {
 
-  constructor() {
+  constructor(private appContext: AppContext) {
     super('User');
   }
 
-  protected getLogger(): ILogger {
-    // Flexible logger that handles both parameter orders for migration compatibility
-    const logFn = (level: string) => (messageOrMeta: string | Record<string, unknown>, metaOrMessage?: Record<string, unknown> | string) => {
-      if (typeof messageOrMeta === 'string') {
-        // Standard order: message, metadata
-        console.log(`[${level.toUpperCase()}]`, messageOrMeta, metaOrMessage);
-      } else {
-        // Legacy order: metadata, message - swap them
-        console.log(`[${level.toUpperCase()}]`, metaOrMessage, messageOrMeta);
-      }
-    };
-
-    return {
-      info: logFn('info'),
-      warn: logFn('warn'),
-      error: logFn('error'),
-      debug: logFn('debug'),
-      log: logFn('log'),
-      logWithLevel: (level: 'error' | 'warn' | 'info' | 'debug', message: string, meta?: Record<string, unknown>) => console.log(`[${level.toUpperCase()}]`, message, meta),
-      level: 'info'
-    };
+  protected getLogger() {
+    return this.appContext.logger;
   }
 
   // =============================================================================
