@@ -15,6 +15,9 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   name: varchar('name', { length: 255 }).notNull(),
   roles: userRoleEnum('roles').array().notNull().default(['user']),
+  bio: text('bio'),
+  avatar: text('avatar'),
+  website: text('website'),
   isActive: boolean('is_active').notNull().default(true),
 });
 
@@ -40,5 +43,8 @@ export interface User extends BaseFields {
   email: string;
   name: string;
   roles: ('admin' | 'user')[];
+  bio?: string | null;
+  avatar?: string | null;
+  website?: string | null;
   isActive: boolean;
 }

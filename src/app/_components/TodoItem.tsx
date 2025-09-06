@@ -20,7 +20,7 @@ import { api } from '~/trpc/react';
 interface Todo {
   id: string;
   title: string;
-  description?: string;
+  description?: string | null;
   completed: boolean;
   createdAt: Date;
   updatedAt: Date;

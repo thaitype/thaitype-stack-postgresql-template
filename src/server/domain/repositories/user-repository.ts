@@ -40,7 +40,7 @@ export interface IUserRepository {
   findById(id: string): Promise<User | null>;
 
   /**
-   * Delete user record (soft delete)
+   * Delete user record (hard delete)
    */
   delete(id: string, context: RepositoryContext): Promise<void>;
 

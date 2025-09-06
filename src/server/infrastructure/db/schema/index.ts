@@ -9,25 +9,26 @@
 // Schema tables
 export { users, userRoleEnum } from './users';
 export { todos, todosRelations } from './todos';
-export { auditLogs, auditEventTypeEnum } from './audit-logs';
+
+// Re-import for schema object
+import { users } from './users';
+import { todos, todosRelations } from './todos';
 
 // Database entity types (with database-specific fields)
 export type { DbUserEntity, DbUserInsert, DbUserUpdate } from './users';
 export type { DbTodoEntity, DbTodoInsert, DbTodoUpdate } from './todos';
-export type { DbAuditLogEntity, DbAuditLogInsert } from './audit-logs';
 
 // Domain model types (for service layer - string-based IDs)
 export type { User } from './users';
 export type { Todo } from './todos';
 
-// Base audit types
-export type { AuditFields } from './base';
-export { auditFields, updateUpdatedAtTrigger, createUpdateTrigger } from './base';
+// Base types
+export type { BaseFields } from './base';
+export { baseFields } from './base';
 
 // Composite schema for Drizzle client
 export const schema = {
   users,
   todos,
   todosRelations,
-  auditLogs,
 } as const;

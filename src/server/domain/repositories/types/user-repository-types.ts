@@ -18,9 +18,9 @@ import type { DbUserEntity } from '~/server/infrastructure/entities';
 
 /**
  * Data required to create a new user record
- * Omits auto-generated fields: _id, createdAt, updatedAt, deletedAt
+ * Omits auto-generated fields: id, createdAt, updatedAt
  */
-export type UserCreateData = Omit<DbUserEntity, '_id' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
+export type UserCreateData = Omit<DbUserEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Full user data with all fields (for domain layer responses)

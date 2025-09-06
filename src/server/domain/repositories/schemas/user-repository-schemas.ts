@@ -22,16 +22,9 @@ import type {
 
 /**
  * Internal repository create data type (for database operations)
+ * Derives from DbUserEntity to ensure type safety
  */
-type RepoUserCreateData = {
-  email: string;
-  name: string;
-  roles: ('admin')[]; // Not optional because schema has default
-  bio?: string;
-  avatar?: string;
-  website?: string;
-  isActive?: boolean;
-};
+type RepoUserCreateData = Omit<DbUserEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Internal basic info update data type
@@ -70,11 +63,11 @@ export const RepoUserCreateSchema = matches<RepoUserCreateData>()(
   z.object({
     email: commonValidation.email,
     name: commonValidation.nonEmptyString,
-    roles: z.array(z.enum(['admin'])).default(['admin']),
-    bio: z.string().optional(),
-    avatar: z.string().url().optional(),
-    website: z.string().url().optional(),
-    isActive: z.boolean().default(true).optional(),
+    roles: z.array(z.enum(['admin', 'user'])).default(['user']),
+    bio: z.string().nullable(),
+    avatar: z.string().nullable(),
+    website: z.string().nullable(),
+    isActive: z.boolean().default(true),
   })
 );
 
@@ -85,9 +78,9 @@ export const RepoUserCreateSchema = matches<RepoUserCreateData>()(
 export const RepoUserBasicInfoUpdateSchema = matches<RepoUserBasicInfoUpdateData>()(
   z.object({
     name: commonValidation.nonEmptyString.optional(),
-    bio: z.string().optional(),
-    avatar: z.string().url().optional(),
-    website: z.string().url().optional(),
+    bio: z.string().nullable().optional(),
+    avatar: z.string().nullable().optional(),
+    website: z.string().nullable().optional(),
   }).partial()
 );
 
@@ -97,7 +90,7 @@ export const RepoUserBasicInfoUpdateSchema = matches<RepoUserBasicInfoUpdateData
  */
 export const RepoUserRolesUpdateSchema = matches<RepoUserRolesUpdateData>()(
   z.object({
-    roles: z.array(z.enum(['admin'])).min(1, 'User must have at least one role'),
+    roles: z.array(z.enum(['admin', 'user'])).min(1, 'User must have at least one role'),
   })
 );
 
@@ -128,9 +121,9 @@ export const RepoUserStatusUpdateSchema = matches<RepoUserStatusUpdateData>()(
 export const RepoUserProfileUpdateSchema = matches<RepoUserProfileUpdateData>()(
   z.object({
     name: commonValidation.nonEmptyString.optional(),
-    bio: z.string().optional(),
-    avatar: z.string().url().optional(),
-    website: z.string().url().optional(),
+    bio: z.string().nullable().optional(),
+    avatar: z.string().nullable().optional(),
+    website: z.string().nullable().optional(),
   }).partial()
 );
 
@@ -148,7 +141,7 @@ export const RepoUserNameUpdateSchema = matches<Pick<DbUserEntity, 'name'>>()(
  */
 export const RepoUserBioUpdateSchema = matches<Pick<DbUserEntity, 'bio'>>()(
   z.object({
-    bio: z.string().optional(),
+    bio: z.string().nullable(),
   })
 );
 
@@ -157,7 +150,7 @@ export const RepoUserBioUpdateSchema = matches<Pick<DbUserEntity, 'bio'>>()(
  */
 export const RepoUserAvatarUpdateSchema = matches<Pick<DbUserEntity, 'avatar'>>()(
   z.object({
-    avatar: z.string().url().optional(),
+    avatar: z.string().nullable(),
   })
 );
 
@@ -166,7 +159,7 @@ export const RepoUserAvatarUpdateSchema = matches<Pick<DbUserEntity, 'avatar'>>(
  */
 export const RepoUserWebsiteUpdateSchema = matches<Pick<DbUserEntity, 'website'>>()(
   z.object({
-    website: z.string().url().optional(),
+    website: z.string().nullable(),
   })
 );
 
@@ -178,7 +171,7 @@ export const RepoUserWebsiteUpdateSchema = matches<Pick<DbUserEntity, 'website'>
  * Schema for role query validation
  */
 export const UserRoleQuerySchema = z.object({
-  role: z.enum(['admin']),
+  role: z.enum(['admin', 'user']),
   includeInactive: z.boolean().default(false).optional(),
 });
 
@@ -195,11 +188,11 @@ export const UserEmailQuerySchema = z.object({
  */
 export const UserFilterQuerySchema = z.object({
   email: commonValidation.email.optional(),
-  roles: z.array(z.enum(['admin'])).optional(),
+  roles: z.array(z.enum(['admin', 'user'])).optional(),
   isActive: z.boolean().optional(),
   limit: z.number().int().min(1).max(1000).default(100).optional(),
   skip: z.number().int().min(0).default(0).optional(),
-  sort: z.record(z.enum(['1', '-1']).transform(val => val === '1' ? 1 : -1)).optional(),
+  sort: z.record(z.enum(['asc', 'desc'])).optional(),
 });
 
 // =============================================================================
@@ -213,10 +206,10 @@ export const UserFilterQuerySchema = z.object({
 export const UserCreateRequestSchema = z.object({
   email: commonValidation.email,
   name: commonValidation.nonEmptyString,
-  roles: z.array(z.enum(['admin'])).default(['admin']).optional(),
-  bio: z.string().optional(),
-  avatar: z.string().url().optional(),
-  website: z.string().url().optional(),
+  roles: z.array(z.enum(['admin', 'user'])).default(['user']).optional(),
+  bio: z.string().nullable().optional(),
+  avatar: z.string().nullable().optional(),
+  website: z.string().nullable().optional(),
   isActive: z.boolean().default(true).optional(),
 });
 
@@ -226,10 +219,10 @@ export const UserCreateRequestSchema = z.object({
  */
 export const UserUpdateRequestSchema = z.object({
   name: commonValidation.nonEmptyString.optional(),
-  roles: z.array(z.enum(['admin'])).min(1).optional(),
-  bio: z.string().optional(),
-  avatar: z.string().url().optional(),
-  website: z.string().url().optional(),
+  roles: z.array(z.enum(['admin', 'user'])).min(1).optional(),
+  bio: z.string().nullable().optional(),
+  avatar: z.string().nullable().optional(),
+  website: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
 }).partial();
 
@@ -239,9 +232,9 @@ export const UserUpdateRequestSchema = z.object({
  */
 export const UserProfileUpdateRequestSchema = z.object({
   name: commonValidation.nonEmptyString.optional(),
-  bio: z.string().optional(),
-  avatar: z.string().url().optional(),
-  website: z.string().url().optional(),
+  bio: z.string().nullable().optional(),
+  avatar: z.string().nullable().optional(),
+  website: z.string().nullable().optional(),
 }).partial();
 
 // =============================================================================
@@ -258,7 +251,7 @@ export const UserIdValidationSchema = z.string().min(1, 'User ID is required');
  * Schema for role validation
  * Ensures valid role enum values
  */
-export const RoleValidationSchema = z.enum(['admin']);
+export const RoleValidationSchema = z.enum(['admin', 'user']);
 
 /**
  * Schema for email validation with domain restrictions (if needed)
@@ -293,7 +286,6 @@ export const BioValidationSchema = z.string()
  * Validates URL format and protocols
  */
 export const UrlValidationSchema = z.string()
-  .url('Invalid URL format')
   .max(2048, 'URL must not exceed 2048 characters')
-  .optional()
-  .nullable();
+  .nullable()
+  .optional();

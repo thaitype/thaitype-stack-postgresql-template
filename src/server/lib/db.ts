@@ -9,8 +9,8 @@ type DrizzleDB = ReturnType<typeof drizzle<typeof schema>>;
 let dbConfig: DatabaseConfig;
 let logger: ReturnType<typeof createLogger>;
 
-let client: ReturnType<typeof postgres>;
-let db: DrizzleDB;
+let client: ReturnType<typeof postgres> | undefined;
+let db: DrizzleDB | undefined;
 
 /**
  * Initialize database configuration

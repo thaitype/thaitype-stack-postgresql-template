@@ -1,26 +1,16 @@
 import { betterAuth } from 'better-auth';
-import { mongodbAdapter } from 'better-auth/adapters/mongodb';
-import { MongoClient } from 'mongodb';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { env } from '~/env';
-import { initializeDatabaseConfig } from './db';
+import { getDatabase } from './db';
 
-// Initialize database configuration for auth hooks
-initializeDatabaseConfig(
-  {
-    uri: env.MONGODB_URI,
-    name: env.DB_NAME,
-  },
-  env.NODE_ENV
-);
-
-// Create MongoDB connection for Better Auth
-const mongoClient = new MongoClient(env.MONGODB_URI);
-await mongoClient.connect();
-const db = mongoClient.db(env.DB_NAME);
+// Get Drizzle database instance for Better Auth
+const db = await getDatabase();
 
 // Standard Better Auth export pattern
 export const auth = betterAuth({
-  database: mongodbAdapter(db),
+  database: drizzleAdapter(db, {
+    provider: 'pg', // PostgreSQL
+  }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Set to true in production

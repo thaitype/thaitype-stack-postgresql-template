@@ -7,12 +7,11 @@
  * Key features:
  * 1. Type-safe validation with matches<T>() alignment
  * 2. Runtime safety for all repository operations
- * 3. Auto-conversion: string -> ObjectId for userId fields
+ * 3. UUID validation for string-based IDs
  */
 
 import { z } from 'zod';
-import { type ObjectId } from 'mongodb';
-import { matches, commonValidation, zObjectId } from '~/server/lib/validation/zod-utils';
+import { matches, commonValidation } from '~/server/lib/validation/zod-utils';
 import type { DbTodoEntity } from '~/server/infrastructure/entities';
 
 // =============================================================================
@@ -21,14 +20,9 @@ import type { DbTodoEntity } from '~/server/infrastructure/entities';
 
 /**
  * Internal repository create data type (for database operations)
- * Converts string userId to ObjectId for MongoDB storage
+ * Derives from DbTodoEntity to ensure type safety
  */
-type RepoTodoCreateData = {
-  title: string;
-  description?: string;
-  userId: ObjectId;
-  completed: boolean;
-};
+type RepoTodoCreateData = Omit<DbTodoEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Internal content update data type
@@ -56,13 +50,13 @@ type RepoTodoDescriptionUpdateData = Pick<DbTodoEntity, 'description'>;
 
 /**
  * Schema for creating todos
- * Converts string userId to ObjectId
+ * Validates all required fields for todo creation
  */
 export const RepoTodoCreateSchema = matches<RepoTodoCreateData>()(
   z.object({
     title: commonValidation.nonEmptyString.max(200, 'Title too long'),
-    description: z.string().max(1000, 'Description too long').optional(),
-    userId: zObjectId,
+    description: z.string().max(1000, 'Description too long').nullable(),
+    userId: z.string().uuid('Invalid user ID format'),
     completed: z.boolean().default(false),
   })
 );
@@ -77,7 +71,7 @@ export const RepoTodoCreateSchema = matches<RepoTodoCreateData>()(
 export const RepoTodoContentUpdateSchema = matches<RepoTodoContentUpdateData>()(
   z.object({
     title: commonValidation.nonEmptyString.max(200, 'Title too long').optional(),
-    description: z.string().max(1000, 'Description too long').optional(),
+    description: z.string().max(1000, 'Description too long').nullable().optional(),
   }).partial()
 );
 
@@ -104,7 +98,7 @@ export const RepoTodoTitleUpdateSchema = matches<RepoTodoTitleUpdateData>()(
  */
 export const RepoTodoDescriptionUpdateSchema = matches<RepoTodoDescriptionUpdateData>()(
   z.object({
-    description: z.string().max(1000, 'Description too long').optional(),
+    description: z.string().max(1000, 'Description too long').nullable(),
   })
 );
 
@@ -113,25 +107,25 @@ export const RepoTodoDescriptionUpdateSchema = matches<RepoTodoDescriptionUpdate
 // =============================================================================
 
 /**
- * Schema for validating ObjectId parameters
+ * Schema for validating UUID parameters
  */
-export const RepoObjectIdSchema = z.string().min(24).max(24).regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId format');
+export const RepoUuidSchema = z.string().uuid('Invalid UUID format');
 
 /**
  * Schema for validating user queries with pagination
  */
 export const RepoTodoUserQuerySchema = z.object({
-  userId: RepoObjectIdSchema,
+  userId: RepoUuidSchema,
   includeCompleted: z.boolean().optional(),
   limit: z.number().min(1).max(100).optional(),
   skip: z.number().min(0).optional(),
-  sort: z.record(z.union([z.literal(1), z.literal(-1)])).optional(),
+  sort: z.record(z.enum(['asc', 'desc'])).optional(),
 });
 
 /**
  * Schema for validating todo status queries
  */
 export const RepoTodoStatusQuerySchema = z.object({
-  userId: RepoObjectIdSchema,
+  userId: RepoUuidSchema,
   completed: z.boolean(),
 });

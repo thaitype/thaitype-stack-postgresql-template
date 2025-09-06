@@ -1,10 +1,10 @@
 import type { ILogger } from '@thaitype/core-utils';
 import { createLogger } from '~/server/infrastructure/logging/logger-factory';
 import type { AppConfig } from '~/server/config/types';
-import { createAppConfig, initializeDatabaseConfig } from '~/server/config/types';
+import { createAppConfig } from '~/server/config/types';
 import { UserService, TodoService } from '~/server/services';
 import type { IUserRepository, ITodoRepository } from '~/server/domain/repositories';
-import { DrizzleTodoRepository } from '~/server/infrastructure/repositories/drizzle-todo-repository';
+import { DrizzleTodoRepository, DrizzleUserRepository } from '~/server/infrastructure/repositories';
 import { initializeDatabaseConfig as initDbConfig } from '~/server/lib/db';
 import { env } from '~/env';
 
@@ -22,7 +22,7 @@ export interface AppContext {
  */
 export interface ServiceContainer {
   appContext: AppContext;
-  userService?: UserService; // Optional until user repository is migrated
+  userService: UserService;
   todoService: TodoService;
 }
 
@@ -58,18 +58,15 @@ export async function createContainer(): Promise<ServiceContainer> {
 
   // Create repositories (Drizzle will handle database connection internally)
   const todoRepository: ITodoRepository = new DrizzleTodoRepository(appContext);
-  
-  // TODO: Create user repository when migrated
-  // For now, we'll create a placeholder or skip user service
-  // const userRepository: IUserRepository = new DrizzleUserRepository(appContext);
+  const userRepository: IUserRepository = new DrizzleUserRepository();
 
   // Create services
-  // const userService = new UserService(appContext, userRepository);
+  const userService = new UserService(appContext, userRepository);
   const todoService = new TodoService(appContext, todoRepository);
 
   return {
     appContext,
-    // userService, // TODO: Re-enable when user repository is migrated
+    userService,
     todoService,
   };
 }

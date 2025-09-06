@@ -130,7 +130,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
         )
         .limit(1);
       
-      if (todo.length === 0) {
+      if (todo.length === 0 || !todo[0]) {
         this.appContext.logger.info('Todo not found or not accessible', {
           todoId: id,
           userId,
@@ -404,7 +404,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
         )
         .limit(1);
 
-      if (currentTodo.length === 0) {
+      if (currentTodo.length === 0 || !currentTodo[0]) {
         throw new Err.NotFoundError(`Todo not found or not owned by user: ${id}`);
       }
 
@@ -454,20 +454,18 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
     try {
       const db = await this.ensureDatabase();
 
+      // Build where conditions
+      const conditions = [eq(todos.userId, userId)];
+      
+      // Filter by completion status if specified
+      if (options?.includeCompleted === false) {
+        conditions.push(eq(todos.completed, false));
+      }
+
       let query = db
         .select()
         .from(todos)
-        .where(eq(todos.userId, userId));
-
-      // Filter by completion status if specified
-      if (options?.includeCompleted === false) {
-        query = query.where(
-          and(
-            eq(todos.userId, userId),
-            eq(todos.completed, false)
-          )
-        );
-      }
+        .where(and(...conditions));
 
       // Apply sorting (default to newest first)
       if (options?.sort?.createdAt === -1) {
@@ -558,7 +556,7 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
       const result = await db
         .select({ count: count() })
         .from(todos)
-        .where(whereCondition);
+        .where(whereCondition!);
 
       const todoCount = result[0]?.count ?? 0;
 
@@ -594,29 +592,23 @@ export class DrizzleTodoRepository extends BaseDrizzleRepository<Todo> implement
         whereConditions.push(eq(todos.completed, filter.completed));
       }
 
-      let query = db
-        .select()
-        .from(todos);
+      let query = db.select().from(todos);
 
+      // Apply where conditions
       if (whereConditions.length > 0) {
         query = query.where(and(...whereConditions));
       }
 
-      // Apply sorting
-      if (filter.sort?.createdAt === -1) {
-        query = query.orderBy(desc(todos.createdAt));
-      } else if (filter.sort?.createdAt === 1) {
-        query = query.orderBy(asc(todos.createdAt));
-      } else {
-        query = query.orderBy(desc(todos.createdAt));
-      }
+      // Apply sorting (default to newest first)
+      const sortDirection = filter.sort?.createdAt === 1 ? asc(todos.createdAt) : desc(todos.createdAt);
+      query = query.orderBy(sortDirection);
 
-      // Apply pagination
-      if (filter.skip) {
-        query = query.offset(filter.skip);
-      }
+      // Apply pagination  
       if (filter.limit) {
         query = query.limit(filter.limit);
+      }
+      if (filter.skip) {
+        query = query.offset(filter.skip);
       }
 
       const todoList = await query;

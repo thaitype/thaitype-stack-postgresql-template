@@ -42,11 +42,14 @@ export class UserService implements IUserService {
       throw new Err.ConflictError('User with this email already exists', { email: data.email });
     }
 
-    // Set defaults
+    // Set defaults and convert null to undefined for repository compatibility
     const userData = {
       ...data,
       roles: data.roles ?? (['admin'] as const),
       isActive: data.isActive ?? true,
+      bio: data.bio ?? undefined,
+      avatar: data.avatar ?? undefined, 
+      website: data.website ?? undefined,
     };
 
     const user = await this.userRepository.create(userData, { operatedBy: SYSTEM_USER_ID });

@@ -52,6 +52,10 @@ async function seedDatabase() {
     const user1 = insertedUsers[0];
     const user2 = insertedUsers[1];
 
+    if (!user1 || !user2) {
+      throw new Error('Failed to create required seed users');
+    }
+
     console.log('📝 Creating seed todos...');
 
     // Create seed todos
