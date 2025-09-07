@@ -15,6 +15,9 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 - ⚡ **Performance** - Next.js 15 with App Router and React 19
 - 🎯 **Production Ready** - ESLint, Prettier, structured logging
 
+## Screenshot
+![](./docs/screenshot.png)
+
 ## 🚀 Tech Stack
 
 ### Core Framework
