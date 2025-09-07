@@ -1,7 +1,7 @@
 import { boolean, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { baseFields, type BaseFields } from './base';
-import { users } from './users';
+import { user } from './user';
 
 /**
  * Todos table schema with minimal fields
@@ -12,16 +12,16 @@ export const todos = pgTable('todos', {
   title: varchar('title', { length: 200 }).notNull(),
   description: text('description'),
   completed: boolean('completed').notNull().default(false),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 });
 
 /**
  * Relations definition for type-safe joins
  */
 export const todosRelations = relations(todos, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [todos.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 

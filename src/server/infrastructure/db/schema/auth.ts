@@ -5,24 +5,24 @@
  * Contains authentication-related tables: user, session, account, verification
  */
 
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { user } from "./user";
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-  roles: text("roles").array().default([]), // Fixed syntax error
-  bio: text("bio"),
-  avatar: text("avatar"),
-  website: text("website"),
-});
+// export const user = pgTable("user", {
+//   id: text("id").primaryKey(),
+//   name: text("name").notNull(),
+//   email: text("email").notNull().unique(),
+//   emailVerified: boolean("email_verified").default(false).notNull(),
+//   image: text("image"),
+//   createdAt: timestamp("created_at").defaultNow().notNull(),
+//   updatedAt: timestamp("updated_at")
+//     .defaultNow()
+//     .$onUpdate(() => new Date())
+//     .notNull(),
+//   bio: text("bio"),
+//   avatar: text("avatar"),
+//   website: text("website"),
+// });
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),

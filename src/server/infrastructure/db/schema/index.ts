@@ -7,27 +7,27 @@
  */
 
 // Schema tables
-export { users } from './users';
-export { todos, todosRelations } from './todos';
-export { roles, userRoles } from './roles';
-export { user, session, account, verification } from './auth';
+export { user as users } from './user';
+export { todos, todosRelations } from './todo';
+export { roles, userRoles } from './role';
+export { session, account, verification } from './auth';
 
 // Re-import for schema object
-import { users } from './users';
-import { todos, todosRelations } from './todos';
-import { roles, userRoles } from './roles';
-import { user, session, account, verification } from './auth';
+import { user } from './user';
+import { todos, todosRelations } from './todo';
+import { roles, userRoles } from './role';
+import { session, account, verification } from './auth';
 
 // Database entity types (with database-specific fields)
-export type { DbUserEntity, DbUserInsert, DbUserUpdate } from './users';
-export type { DbTodoEntity, DbTodoInsert, DbTodoUpdate } from './todos';
-export type { DbRoleEntity, DbRoleInsert, DbUserRoleEntity, DbUserRoleInsert } from './roles';
+export type { DbUserEntity, DbUserInsert, DbUserUpdate } from './user';
+export type { DbTodoEntity, DbTodoInsert, DbTodoUpdate } from './todo';
+export type { DbRoleEntity, DbRoleInsert, DbUserRoleEntity, DbUserRoleInsert } from './role';
 export type { AuthUser, AuthUserInsert, AuthSession, AuthSessionInsert, AuthAccount, AuthAccountInsert, AuthVerification, AuthVerificationInsert } from './auth';
 
 // Domain model types (for service layer - string-based IDs)
-export type { User } from './users';
-export type { Todo } from './todos';
-export type { Role } from './roles';
+export type { User } from './user';
+export type { Todo } from './todo';
+export type { Role } from './role';
 
 // Base types
 export type { BaseFields } from './base';
@@ -35,7 +35,6 @@ export { baseFields } from './base';
 
 // Composite schema for Drizzle client
 export const schema = {
-  users,
   todos,
   todosRelations,
   roles,

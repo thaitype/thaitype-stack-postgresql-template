@@ -1,11 +1,11 @@
-import { pgTable, varchar, text, uuid, unique } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, text, uuid } from 'drizzle-orm/pg-core';
 import { baseFields, type BaseFields } from './base';
-import { users } from './users';
+import { user } from './user';
 
 /**
  * Roles table - Master data for user roles
  */
-export const roles = pgTable('roles', {
+export const roles = pgTable('role', {
   ...baseFields,
   name: varchar('name', { length: 50 }).notNull().unique(),
   description: text('description'),
@@ -14,14 +14,11 @@ export const roles = pgTable('roles', {
 /**
  * User-Roles junction table - Many-to-many relationship between users and roles
  */
-export const userRoles = pgTable('user_roles', {
+export const userRoles = pgTable('user_role', {
   ...baseFields,
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   roleId: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
-}, (table) => ({
-  // Ensure each user can only have each role once
-  uniqueUserRole: unique().on(table.userId, table.roleId),
-}));
+});
 
 /**
  * Database entity types following entity-based architecture naming convention
