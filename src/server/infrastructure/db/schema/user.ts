@@ -11,9 +11,10 @@ export const user = pgTable('user', {
    * Better Auth currently uses string IDs instead of UUIDs
    * See: https://www.better-auth.com/docs/concepts/database?utm_source=chatgpt.com#id-generation
    */
-  id: text("id").primaryKey(),
-  createdAt: baseFields.createdAt,
-  updatedAt: baseFields.updatedAt,
+  // id: text("id").primaryKey(),
+  // createdAt: baseFields.createdAt,
+  // updatedAt: baseFields.updatedAt,
+  ...baseFields,
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),

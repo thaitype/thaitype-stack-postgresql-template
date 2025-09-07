@@ -7,6 +7,7 @@
 
 import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./user";
+import { baseFields } from "./base";
 
 // export const user = pgTable("user", {
 //   id: text("id").primaryKey(),
@@ -25,7 +26,7 @@ import { user } from "./user";
 // });
 
 export const session = pgTable("session", {
-  id: text("id").primaryKey(),
+  id: baseFields.id,
   expiresAt: timestamp("expires_at").notNull(),
   token: text("token").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -40,7 +41,7 @@ export const session = pgTable("session", {
 });
 
 export const account = pgTable("account", {
-  id: text("id").primaryKey(),
+  id: baseFields.id,
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
   userId: text("user_id")

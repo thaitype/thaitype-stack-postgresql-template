@@ -15,7 +15,6 @@ import { matches, commonValidation } from '~/server/lib/validation/zod-utils';
 import type { 
   DbUserEntity
 } from '~/server/infrastructure/entities';
-import { email } from 'better-auth';
 
 // =============================================================================
 // INTERNAL REPOSITORY SCHEMA TYPES (for database operations)
