@@ -15,6 +15,7 @@ import { matches, commonValidation } from '~/server/lib/validation/zod-utils';
 import type { 
   DbUserEntity
 } from '~/server/infrastructure/entities';
+import { email } from 'better-auth';
 
 // =============================================================================
 // INTERNAL REPOSITORY SCHEMA TYPES (for database operations)
@@ -66,7 +67,8 @@ export const RepoUserCreateSchema = matches<RepoUserCreateData>()(
     bio: z.string().nullable(),
     avatar: z.string().nullable(),
     website: z.string().nullable(),
-    isActive: z.boolean().default(true),
+    image: z.string().nullable(),
+    emailVerified: z.boolean().default(false),
   })
 );
 
