@@ -42,10 +42,6 @@ type RepoUserRolesUpdateData = { roles: string[] };
  */
 type RepoUserEmailUpdateData = Pick<DbUserEntity, 'email'>;
 
-/**
- * Internal status update data type
- */
-type RepoUserStatusUpdateData = { isActive: boolean };
 
 /**
  * Internal profile update data type
@@ -105,15 +101,6 @@ export const RepoUserEmailUpdateSchema = matches<RepoUserEmailUpdateData>()(
   })
 );
 
-/**
- * Schema for updating user status
- * Validates boolean isActive field
- */
-export const RepoUserStatusUpdateSchema = matches<RepoUserStatusUpdateData>()(
-  z.object({
-    isActive: z.boolean(),
-  })
-);
 
 /**
  * Schema for updating user profile
@@ -190,7 +177,6 @@ export const UserEmailQuerySchema = z.object({
 export const UserFilterQuerySchema = z.object({
   email: commonValidation.email.optional(),
   roles: z.array(z.string()).optional(),
-  isActive: z.boolean().optional(),
   limit: z.number().int().min(1).max(1000).default(100).optional(),
   skip: z.number().int().min(0).default(0).optional(),
   sort: z.record(z.enum(['asc', 'desc'])).optional(),
@@ -211,7 +197,6 @@ export const UserCreateRequestSchema = z.object({
   bio: z.string().nullable().optional(),
   avatar: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
-  isActive: z.boolean().default(true).optional(),
 });
 
 /**
@@ -224,7 +209,6 @@ export const UserUpdateRequestSchema = z.object({
   bio: z.string().nullable().optional(),
   avatar: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
-  isActive: z.boolean().optional(),
 }).partial();
 
 /**

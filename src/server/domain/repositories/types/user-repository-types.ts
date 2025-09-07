@@ -58,11 +58,6 @@ export type UserRolesUpdate = {
  */
 export type UserEmailUpdate = Pick<DbUserEntity, 'email'>;
 
-/**
- * Update user active status
- * Used by: updateStatus() repository method
- */
-export type UserStatusUpdate = Pick<DbUserEntity, 'isActive'>;
 
 /**
  * Update user bio only

@@ -4,7 +4,6 @@ import type {
   UserBasicInfoPartialUpdate,
   UserRolesUpdate,
   UserEmailUpdate,
-  UserStatusUpdate,
   UserProfilePartialUpdate,
   UserNameUpdate,
   UserBioUpdate,
@@ -62,10 +61,6 @@ export interface IUserRepository {
    */
   updateEmail(id: string, input: UserEmailUpdate): Promise<void>;
 
-  /**
-   * Update user active status
-   */
-  updateStatus(id: string, input: UserStatusUpdate): Promise<void>;
 
   /**
    * Update user profile (name, bio, avatar, website - excludes sensitive fields)

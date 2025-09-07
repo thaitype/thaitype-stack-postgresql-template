@@ -6,7 +6,6 @@ export interface User {
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,7 +17,6 @@ export interface CreateUserRequest {
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;
-  isActive?: boolean;
 }
 
 export interface UpdateUserRequest {
@@ -27,7 +25,6 @@ export interface UpdateUserRequest {
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;
-  isActive?: boolean;
 }
 
 export interface UpdateProfileRequest {

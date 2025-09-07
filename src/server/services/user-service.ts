@@ -45,7 +45,6 @@ export class UserService implements IUserService {
     const userData = {
       ...data,
       roles: data.roles ?? (['admin'] as const),
-      isActive: data.isActive ?? true,
       bio: data.bio ?? undefined,
       avatar: data.avatar ?? undefined, 
       website: data.website ?? undefined,
@@ -109,9 +108,6 @@ export class UserService implements IUserService {
     }
     
     // Update status if provided
-    if (data.isActive !== undefined) {
-      await this.userRepository.updateStatus(id, { isActive: data.isActive });
-    }
 
     this.appContext.logger.info('User updated successfully in service', {
       userId: id,

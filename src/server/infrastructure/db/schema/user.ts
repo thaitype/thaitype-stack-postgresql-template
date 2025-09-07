@@ -56,5 +56,4 @@ export interface User extends BaseFields {
   bio?: string | null;
   avatar?: string | null;
   website?: string | null;
-  isActive: boolean;
 }

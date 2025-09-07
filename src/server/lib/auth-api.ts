@@ -99,10 +99,11 @@ export class AuthUserAPI {
         id: betterAuthUser.id,
         email: betterAuthUser.email,
         name: betterAuthUser.name,
+        emailVerified: false, // Default value since Better Auth user might not have this field yet
+        image: null, // Default value since Better Auth user might not have this field yet
         bio: betterAuthUser.bio ?? null,
         avatar: betterAuthUser.avatar ?? null,
         website: betterAuthUser.website ?? null,
-        isActive: true,
         createdAt: betterAuthUser.createdAt,
         updatedAt: betterAuthUser.updatedAt,
       };

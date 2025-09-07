@@ -17,7 +17,6 @@ import type {
   UserBasicInfoPartialUpdate,
   UserRolesUpdate,
   UserEmailUpdate,
-  UserStatusUpdate,
   UserProfilePartialUpdate,
   UserNameUpdate,
   UserBioUpdate,
@@ -32,7 +31,6 @@ import {
   RepoUserBasicInfoUpdateSchema,
   RepoUserRolesUpdateSchema,
   RepoUserEmailUpdateSchema,
-  RepoUserStatusUpdateSchema,
   RepoUserProfileUpdateSchema,
   RepoUserNameUpdateSchema,
   RepoUserBioUpdateSchema,
@@ -74,7 +72,9 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
         }
       );
 
-      const [created] = await db.insert(users).values(validatedData).returning();
+      // Use Better Auth API to create user instead of direct database insert
+      // This should delegate to Better Auth's signUp API
+      throw new Error('User creation should be handled via Better Auth API, not direct repository insert');
 
       if (!created) {
         throw new Err.DatabaseError('Failed to create user record');
@@ -126,7 +126,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
           bio: users.bio,
           avatar: users.avatar,
           website: users.website,
-          isActive: users.isActive,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           roles: sql<string[]>`array_agg(${roles.name}) filter (where ${roles.name} is not null)`,
@@ -355,45 +354,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
     }
   }
 
-  async updateStatus(id: string, input: UserStatusUpdate): Promise<void> {
-    try {
-      await this.initializeDatabase();
-      const db = await this.ensureDatabase();
-
-      const validatedData = RepoUserStatusUpdateSchema.parse(input);
-
-      this.getLogger().info(
-        'Updating user status',
-        {
-          operation: 'updateStatus',
-          entityName: this.entityName,
-          id,
-        }
-      );
-
-      await db.update(users).set(validatedData).where(eq(users.id, id));
-
-      this.getLogger().info(
-        'User status updated successfully',
-        {
-          operation: 'updateStatus',
-          entityName: this.entityName,
-          id,
-        }
-      );
-    } catch (error) {
-      this.getLogger().error(
-        'Failed to update user status',
-        {
-          operation: 'updateStatus',
-          entityName: this.entityName,
-          id,
-          error: (error as Error).message,
-        }
-      );
-      throw error;
-    }
-  }
 
   async updateProfile(id: string, input: UserProfilePartialUpdate): Promise<User | null> {
     try {
@@ -636,7 +596,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
           bio: users.bio,
           avatar: users.avatar,
           website: users.website,
-          isActive: users.isActive,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           roles: sql<string[]>`array_agg(${roles.name}) filter (where ${roles.name} is not null)`,
@@ -708,7 +667,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
           bio: users.bio,
           avatar: users.avatar,
           website: users.website,
-          isActive: users.isActive,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           roles: sql<string[]>`array_agg(${roles.name}) filter (where ${roles.name} is not null)`,
@@ -721,9 +679,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
       const conditions = [];
       if (filter?.email) {
         conditions.push(ilike(users.email, `%${filter.email}%`));
-      }
-      if (filter?.isActive !== undefined) {
-        conditions.push(eq(users.isActive, filter.isActive));
       }
 
       if (conditions.length > 0) {
@@ -802,9 +757,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
         if (filter?.email) {
           conditions.push(ilike(users.email, `%${filter.email}%`));
         }
-        if (filter?.isActive !== undefined) {
-          conditions.push(eq(users.isActive, filter.isActive));
-        }
 
         const query = db
           .select({ count: sql<number>`count(*)` })
@@ -831,9 +783,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
         const conditions: SQL[] = [];
         if (filter?.email) {
           conditions.push(ilike(users.email, `%${filter.email}%`));
-        }
-        if (filter?.isActive !== undefined) {
-          conditions.push(eq(users.isActive, filter.isActive));
         }
 
         if (conditions.length > 0) {
@@ -885,7 +834,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
       bio: entity.bio,
       avatar: entity.avatar,
       website: entity.website,
-      isActive: entity.isActive,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -901,7 +849,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
     bio: string | null;
     avatar: string | null;
     website: string | null;
-    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     roles: string[] | null;
@@ -914,7 +861,6 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
       bio: result.bio,
       avatar: result.avatar,
       website: result.website,
-      isActive: result.isActive,
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
     };
