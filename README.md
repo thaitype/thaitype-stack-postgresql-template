@@ -1,8 +1,6 @@
 # Todo App Template - Next.js Enterprise Stack
 
 > This project is using upstream from [thaitype-stack-mongodb-template](https://github.com/thaitype/thaitype-stack-mongodb-template), however, this will be a sql-based template with drizzleorm
->
-> This project is in-progress. Please check back later for updates.
 
 A production-ready **Todo Application Template** built with Next.js 15, implementing enterprise-grade patterns and modern development practices. This template serves as a robust foundation for building scalable full-stack applications with authentication, CRUD operations, and real-time updates.
 
@@ -13,7 +11,7 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 - 🎨 **Modern UI** - Mantine components with responsive design
 - 🏗️ **Enterprise Architecture** - Entity-based repository pattern
 - 🔒 **Type Safety** - Full TypeScript with tRPC API layer
-- 📊 **Database** - PostgreSQL with Drizzle ORM and audit logging
+- 📊 **Database** - PostgreSQL with Drizzle ORM
 - ⚡ **Performance** - Next.js 15 with App Router and React 19
 - 🎯 **Production Ready** - ESLint, Prettier, structured logging
 
@@ -357,8 +355,7 @@ interface DbUserEntity {
   name: string;        // User display name
   bio?: string;        // Optional user biography
   avatar?: string;     // Optional avatar URL
-  website?: string;    // Optional website URL  
-  isActive: boolean;   // Account status
+  website?: string;    // Optional website URL
   // Auto-managed timestamps
   createdAt: Date;     // Auto-set on creation
   updatedAt: Date;     // Auto-updated on changes
@@ -417,7 +414,6 @@ interface User {
   bio?: string;
   avatar?: string;
   website?: string;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -485,7 +481,6 @@ docker run -p 3000:3000 todo-app
 ├── Responsive UI ✅
 ├── Production Logging ✅
 ├── Type Safety ✅
-└── Audit Trail ✅
 ```
 
 ## 📚 Documentation

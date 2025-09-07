@@ -1,5 +1,5 @@
 services:
-  db:
+  postgres:
     image: postgres:17-alpine
     container_name: postgres
     restart: unless-stopped
@@ -12,5 +12,19 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  drizzle-gateway:
+    image: ghcr.io/drizzle-team/gateway:latest
+    container_name: drizzle-gate
+    restart: always
+    ports:
+      - "4983:4983"
+    environment:
+      PORT: 4983                # Set the port for Drizzle Gateway (optional)
+      STORE_PATH: /app          # Set your store path (optional)
+      # MASTERPASS: your_master_password  # Set your master pass (optional)
+    volumes:
+      - drizzle-gateway:/app
+
 volumes:
+  drizzle-gateway:
   pgdata:
