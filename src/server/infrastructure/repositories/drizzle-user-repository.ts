@@ -13,7 +13,6 @@ import { eq, and, ilike, inArray, type SQL, sql } from 'drizzle-orm';
 import type { User } from '~/server/domain/models';
 import type { IUserRepository } from '~/server/domain/repositories/user-repository';
 import type {
-  UserCreateRequest,
   UserBasicInfoPartialUpdate,
   UserRolesUpdate,
   UserEmailUpdate,
@@ -27,7 +26,6 @@ import { BaseDrizzleRepository } from './base-drizzle-repository';
 import { users, roles, userRoles } from '../db/schema';
 import type { DbUserEntity } from '../entities';
 import {
-  RepoUserCreateSchema,
   RepoUserBasicInfoUpdateSchema,
   RepoUserRolesUpdateSchema,
   RepoUserEmailUpdateSchema,
@@ -37,7 +35,6 @@ import {
   RepoUserAvatarUpdateSchema,
   RepoUserWebsiteUpdateSchema,
 } from '~/server/domain/repositories/schemas/user-repository-schemas';
-import * as Err from '~/server/lib/errors/domain-errors';
 
 /**
  * Drizzle implementation of User Repository
@@ -56,51 +53,10 @@ export class DrizzleUserRepository extends BaseDrizzleRepository implements IUse
   // BASIC CRUD OPERATIONS
   // =============================================================================
 
-  async create(input: UserCreateRequest): Promise<User> {
-    try {
-      await this.initializeDatabase();
-      const db = await this.ensureDatabase();
-
-      const validatedData = RepoUserCreateSchema.parse(input);
-
-      this.getLogger().info(
-        'Creating user record',
-        {
-          operation: 'create',
-          entityName: this.entityName,
-          email: validatedData.email,
-        }
-      );
-
-      // Use Better Auth API to create user instead of direct database insert
-      // This should delegate to Better Auth's signUp API
-      throw new Error('User creation should be handled via Better Auth API, not direct repository insert');
-
-      if (!created) {
-        throw new Err.DatabaseError('Failed to create user record');
-      }
-
-      this.getLogger().info(
-        'User record created successfully',
-        {
-          operation: 'create',
-          entityName: this.entityName,
-          id: created.id,
-        }
-      );
-
-      return this.mapToUser(created);
-    } catch (error) {
-      this.getLogger().error(
-        'Failed to create user record',
-        {
-          operation: 'create',
-          entityName: this.entityName,
-          error: (error as Error).message,
-        }
-      );
-      throw error;
-    }
+  async create(): Promise<User> {
+    // Use Better Auth API to create user instead of direct database insert
+    // This should delegate to Better Auth's signUp API
+    throw new Error('User creation should be handled via Better Auth API, not direct repository insert');
   }
 
   async findById(id: string): Promise<User | null> {
