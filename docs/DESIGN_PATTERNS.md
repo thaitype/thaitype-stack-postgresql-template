@@ -1,10 +1,10 @@
 # Design Patterns & Development Guidelines
 
-This document provides comprehensive guidelines for the design patterns, architectural decisions, and development practices used in this Todo App Template. These patterns ensure type safety, maintainability, and scalability across the entire application.
+This document provides comprehensive guidelines for the design patterns, architectural decisions, and development practices used in this Todo App Template. These patterns ensure type safety, maintainability, and scalability across the entire application using PostgreSQL with Drizzle ORM.
 
 ## Table of Contents
 
-1. [Entity-Based Repository Pattern](#entity-based-repository-pattern)
+1. [Schema-Based Repository Pattern](#schema-based-repository-pattern)
 2. [Service Layer Patterns](#service-layer-patterns)
 3. [Validation Architecture](#validation-architecture)
 4. [tRPC Integration Patterns](#trpc-integration-patterns)
@@ -15,36 +15,44 @@ This document provides comprehensive guidelines for the design patterns, archite
 
 ---
 
-## Entity-Based Repository Pattern
+## Schema-Based Repository Pattern
 
 ### Core Philosophy
 
-The **Entity-Based Repository Pattern** establishes database entities as the single source of truth for all type definitions. This prevents type drift and ensures consistency across the application layers.
+The **Schema-Based Repository Pattern** establishes database schemas as the single source of truth for all type definitions using PostgreSQL and Drizzle ORM. This prevents type drift and ensures consistency across the application layers.
 
-### 1. Database Entity Definition
+### 1. Database Schema Definition
 
-Database entities are defined in `~/server/infrastructure/entities/` and serve as the foundation for all derived types:
+Database schemas are defined using Drizzle's `pgTable` in `~/server/infrastructure/db/schema/` and serve as the foundation for all derived types:
 
 ```typescript
-// ~/server/infrastructure/entities/index.ts
-import { AuditableDocument } from 'monguard';
-import { ObjectId } from 'mongodb';
+// ~/server/infrastructure/db/schema/todo.ts
+import { boolean, pgTable, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+import { baseFields, type BaseFields } from './base';
+import { user } from './user';
 
-export interface DbTodoEntity extends AuditableDocument {
-  _id: ObjectId;
-  title: string;
-  description?: string;
-  completed: boolean;
-  userId: ObjectId;
-  // Inherited from AuditableDocument:
-  // createdAt: Date;
-  // updatedAt: Date;
-  // deletedAt?: Date;
-  // createdBy?: ObjectId;
-  // updatedBy?: ObjectId;
-  // deletedBy?: ObjectId;
-  // __v?: number;
-}
+export const todos = pgTable('todo', {
+  ...baseFields,  // id (UUID), createdAt, updatedAt
+  
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description'),
+  completed: boolean('completed').notNull().default(false),
+  userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+});
+
+// Relations for type-safe joins
+export const todosRelations = relations(todos, ({ one }) => ({
+  user: one(user, {
+    fields: [todos.userId],
+    references: [user.id],
+  }),
+}));
+
+// Inferred types from schema
+export type DbTodoEntity = typeof todos.$inferSelect;
+export type DbTodoInsert = typeof todos.$inferInsert;
+export type DbTodoUpdate = Partial<Omit<DbTodoEntity, 'id' | 'createdAt' | 'userId'>>;
 ```
 
 ### 2. Domain Model Definition
@@ -54,11 +62,11 @@ Domain models in `~/server/domain/models/` represent the business layer view wit
 ```typescript
 // ~/server/domain/models/todo.ts
 export interface Todo {
-  id: string;              // Converted from ObjectId
+  id: string;              // String representation of UUID
   title: string;
-  description?: string;
+  description?: string | null;
   completed: boolean;
-  userId: string;          // Converted from ObjectId
+  userId: string;          // String representation of UUID
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,20 +74,17 @@ export interface Todo {
 
 ### 3. Repository Type Derivation
 
-All repository types **MUST** derive from database entities using TypeScript utility types:
+All repository types **MUST** derive from database schemas using TypeScript utility types:
 
 ```typescript
-// ~/server/domain/repositories/schemas/todo-repository-schemas.ts
-import type { DbTodoEntity } from '~/server/infrastructure/entities';
+// ~/server/domain/repositories/types/todo-repository-types.ts
+import type { DbTodoEntity } from '~/server/infrastructure/db/schema/todo';
 
-// ✅ CORRECT: Derive from database entity
-export type RepoTodoCreateData = Omit<
-  DbTodoEntity, 
-  '_id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'createdBy' | 'updatedBy' | 'deletedBy' | '__v'
->;
-
-export type RepoTodoContentUpdate = Pick<DbTodoEntity, 'title' | 'description'>;
-export type RepoTodoStatusUpdate = Pick<DbTodoEntity, 'completed'>;
+// ✅ CORRECT: Derive from database schema
+export type TodoCreateData = Omit<DbTodoEntity, 'id' | 'createdAt' | 'updatedAt'>;
+export type TodoContentUpdate = Pick<DbTodoEntity, 'title' | 'description'>;
+export type TodoContentPartialUpdate = Partial<TodoContentUpdate>;
+export type TodoStatusUpdate = Pick<DbTodoEntity, 'completed'>;
 
 // ❌ FORBIDDEN: Manual type definitions
 interface TodoCreateData {
@@ -94,59 +99,60 @@ Repository interfaces define domain-focused methods with explicit naming:
 
 ```typescript
 // ~/server/domain/repositories/todo-repository.ts
-import type { RepositoryContext } from '~/server/lib/constants';
-
 export interface ITodoRepository {
   // Explicit, dedicated methods instead of generic CRUD
-  create(input: RepoTodoCreateData, context: RepositoryContext): Promise<Todo>;
-  findById(id: string, userId?: string): Promise<Todo | null>;
+  create(input: TodoCreateData): Promise<Todo>;
+  findById(id: string): Promise<Todo | null>;
   findByUserId(userId: string, options?: TodoQueryOptions): Promise<Todo[]>;
   
   // Dedicated update methods for different concerns
-  updateContent(id: string, input: RepoTodoContentUpdate, userId: string, context: RepositoryContext): Promise<void>;
-  updateStatus(id: string, input: RepoTodoStatusUpdate, userId: string, context: RepositoryContext): Promise<void>;
+  updateContent(id: string, input: TodoContentPartialUpdate): Promise<void>;
+  updateStatus(id: string, input: TodoStatusUpdate): Promise<void>;
   
   // Specialized operations
-  toggleCompletion(id: string, userId: string, context: RepositoryContext): Promise<Todo>;
-  delete(id: string, userId: string, context: RepositoryContext): Promise<void>;
+  toggleCompletion(id: string): Promise<Todo>;
+  delete(id: string): Promise<void>;
   countByUserId(userId: string, filter?: { completed?: boolean }): Promise<number>;
 }
 ```
 
 ### 5. Repository Implementation
 
-Repository implementations handle ObjectId conversion and validation:
+Repository implementations handle UUID validation and conversion:
 
 ```typescript
-// ~/server/infrastructure/repositories/mongo-todo-repository.ts
-export class MongoTodoRepository extends BaseMongoRepository implements ITodoRepository {
-  private collection: MonguardCollection<DbTodoEntity>;
+// ~/server/infrastructure/repositories/drizzle-todo-repository.ts
+export class DrizzleTodoRepository extends BaseDrizzleRepository implements ITodoRepository {
+  protected entityName = 'Todo';
 
-  async create(input: RepoTodoCreateData, context: RepositoryContext): Promise<Todo> {
+  async create(input: TodoCreateData): Promise<Todo> {
     try {
       // Validate input with Zod schema
       const validatedInput = RepoTodoCreateSchema.parse(input);
       
-      // Create document with Monguard (includes audit fields)
-      const createdTodo = await this.collection.create(validatedInput, {
-        userContext: this.resolveUserContext(context)
-      });
+      // Create record with Drizzle
+      const db = await this.getDatabase();
+      const [created] = await db.insert(todos).values(validatedInput).returning();
+      
+      if (!created) {
+        throw new DatabaseError('Failed to create todo');
+      }
 
-      // Convert ObjectId to string for domain model
-      return this.mapToDomainModel(createdTodo);
+      // Convert to domain model
+      return this.mapToDomainModel(created);
     } catch (error) {
-      this.logger.error('Failed to create todo', { error, input, context });
+      this.getLogger().error('Failed to create todo', { error, input });
       throw error;
     }
   }
 
   private mapToDomainModel(entity: DbTodoEntity): Todo {
     return {
-      id: (entity._id as ObjectId).toString(),
+      id: entity.id,
       title: entity.title,
       description: entity.description,
       completed: entity.completed,
-      userId: (entity.userId as ObjectId).toString(),
+      userId: entity.userId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -160,13 +166,13 @@ export class MongoTodoRepository extends BaseMongoRepository implements ITodoRep
 
 ### Database-Agnostic Business Logic
 
-Service layer contains business logic and **NEVER** imports MongoDB types directly:
+Service layer contains business logic and **NEVER** imports database-specific types directly:
 
 ```typescript
 // ~/server/services/todo-service.ts
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
-import { createRepositoryContext } from '~/server/lib/constants';
+import * as Err from '~/server/lib/errors';
 
 export class TodoService {
   constructor(
@@ -178,30 +184,29 @@ export class TodoService {
     try {
       // Business validation
       if (!request.title.trim()) {
-        throw new ValidationError('Title is required');
+        throw new Err.ValidationError('Title is required');
       }
 
       if (request.title.length > 200) {
-        throw new ValidationError('Title too long', {
+        throw new Err.ValidationError('Title too long', {
           maxLength: 200,
           currentLength: request.title.length
         });
       }
 
-      // Create repository context
-      const context = createRepositoryContext(userId);
-      
-      // Delegate to repository
+      // Delegate to repository with domain types (strings)
       const todo = await this.todoRepository.create({
         title: request.title.trim(),
-        description: request.description?.trim(),
+        description: request.description?.trim() ?? null,
         completed: false,
         userId
-      }, context);
+      });
 
       this.appContext.logger.info('Todo created successfully', {
         todoId: todo.id,
-        userId
+        userId,
+        service: 'TodoService',
+        operation: 'createTodo'
       });
 
       return todo;
@@ -209,30 +214,46 @@ export class TodoService {
       this.appContext.logger.error('Failed to create todo', {
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
-        request
+        request,
+        service: 'TodoService',
+        operation: 'createTodo'
       });
       throw error;
     }
   }
-}
-```
 
-### Context Propagation Pattern
+  async updateTodo(todoId: string, request: UpdateTodoRequest, userId: string): Promise<void> {
+    // Permission checking (service responsibility)
+    const existingTodo = await this.todoRepository.findById(todoId);
+    if (!existingTodo) {
+      throw new Err.NotFoundError('Todo not found');
+    }
 
-Use `RepositoryContext` for user tracking and audit logging:
+    if (existingTodo.userId !== userId) {
+      throw new Err.ForbiddenError('Access denied to this todo');
+    }
 
-```typescript
-// ~/server/lib/constants.ts
-export interface RepositoryContext {
-  operatedBy: string;
-  traceId?: string;
-}
+    // Handle different update operations
+    if (request.title !== undefined || request.description !== undefined) {
+      await this.todoRepository.updateContent(todoId, {
+        title: request.title,
+        description: request.description
+      });
+    }
 
-export function createRepositoryContext(userId: string, traceId?: string): RepositoryContext {
-  return {
-    operatedBy: userId,
-    traceId
-  };
+    if (request.completed !== undefined) {
+      await this.todoRepository.updateStatus(todoId, {
+        completed: request.completed
+      });
+    }
+
+    this.appContext.logger.info('Todo updated successfully', {
+      todoId,
+      userId,
+      service: 'TodoService',
+      operation: 'updateTodo'
+    });
+  }
 }
 ```
 
@@ -246,25 +267,25 @@ Use the `matches<T>()` utility to ensure Zod schemas align with TypeScript types
 
 ```typescript
 // ~/server/domain/repositories/schemas/todo-repository-schemas.ts
-import { matches } from '~/server/lib/validation/zod-matches';
+import { matches } from '~/server/lib/validation/zod-utils';
 import { z } from 'zod';
-import { zObjectId, commonValidation } from '~/server/lib/validation';
+import { commonValidation } from '~/server/lib/validation';
 
-// Type definitions derived from entity
-export type RepoTodoCreateData = Omit<DbTodoEntity, '_id' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
+// Type definitions derived from schema
+export type TodoCreateData = Omit<DbTodoEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 // Schema that matches the type exactly
-export const RepoTodoCreateSchema = matches<RepoTodoCreateData>()(
+export const RepoTodoCreateSchema = matches<TodoCreateData>()(
   z.object({
     title: commonValidation.nonEmptyString.max(200),
-    description: z.string().max(1000).optional(),
+    description: z.string().max(1000).nullable().optional(),
     completed: z.boolean().default(false),
-    userId: zObjectId,
+    userId: z.string().uuid(),
   })
 );
 
 // Compile-time type checking ensures schema matches type
-const _typeCheck: RepoTodoCreateData = {} as z.infer<typeof RepoTodoCreateSchema>;
+const _typeCheck: TodoCreateData = {} as z.infer<typeof RepoTodoCreateSchema>;
 ```
 
 ### Common Validation Utilities
@@ -272,17 +293,11 @@ const _typeCheck: RepoTodoCreateData = {} as z.infer<typeof RepoTodoCreateSchema
 ```typescript
 // ~/server/lib/validation/common.ts
 import { z } from 'zod';
-import { ObjectId } from 'mongodb';
-
-export const zObjectId = z.custom<ObjectId>(
-  (val) => val instanceof ObjectId || ObjectId.isValid(val?.toString()),
-  { message: 'Invalid ObjectId' }
-).transform(val => typeof val === 'string' ? new ObjectId(val) : val);
 
 export const commonValidation = {
   nonEmptyString: z.string().min(1, 'Required'),
   email: z.string().email('Invalid email format'),
-  objectId: zObjectId,
+  uuid: z.string().uuid('Invalid UUID format'),
 };
 ```
 
@@ -299,6 +314,7 @@ Organize tRPC routers by feature with consistent error handling:
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc';
 import { TRPCError } from '@trpc/server';
+import * as Err from '~/server/lib/errors';
 
 export const todoRouter = createTRPCRouter({
   create: protectedProcedure
@@ -318,7 +334,7 @@ export const todoRouter = createTRPCRouter({
       } catch (error) {
         ctx.logger.error('Failed to create todo', { error, input });
         
-        if (error instanceof ValidationError) {
+        if (error instanceof Err.ValidationError) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: error.message,
@@ -358,6 +374,7 @@ Use tRPC hooks with proper error handling and optimistic updates:
 ```typescript
 // ~/app/_components/TodoList.tsx
 import { api } from '~/trpc/react';
+import { notifications } from '@mantine/notifications';
 
 export function TodoList() {
   const utils = api.useUtils();
@@ -375,6 +392,12 @@ export function TodoList() {
       // Invalidate queries for real-time updates
       void utils.todo.getAll.invalidate();
       void utils.todo.getStats.invalidate();
+      
+      notifications.show({
+        title: 'Success',
+        message: 'Todo created successfully',
+        color: 'green',
+      });
     },
     onError: (error) => {
       notifications.show({
@@ -389,7 +412,16 @@ export function TodoList() {
     createMutation.mutate(input);
   };
 
-  // ... rest of component
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      {todosData?.todos.map(todo => (
+        <TodoItem key={todo.id} todo={todo} onUpdate={handleCreate} />
+      ))}
+    </div>
+  );
 }
 ```
 
@@ -414,6 +446,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
+import { api } from '~/trpc/react';
 
 interface TodoItemProps {
   todo: Todo;
@@ -425,6 +458,14 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
   const utils = api.useUtils();
 
   const toggleMutation = api.todo.toggle.useMutation({
+    onSuccess: () => {
+      void utils.todo.getAll.invalidate();
+      void utils.todo.getStats.invalidate();
+      onUpdate?.();
+    },
+  });
+
+  const deleteMutation = api.todo.delete.useMutation({
     onSuccess: () => {
       void utils.todo.getAll.invalidate();
       void utils.todo.getStats.invalidate();
@@ -470,6 +511,7 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
               <Menu.Item 
                 leftSection={<IconTrash size="0.9rem" />}
                 color="red"
+                onClick={() => deleteMutation.mutate({ id: todo.id })}
               >
                 Delete
               </Menu.Item>
@@ -482,28 +524,12 @@ export function TodoItem({ todo, onUpdate }: TodoItemProps) {
 }
 ```
 
-### Responsive Design Patterns
-
-```typescript
-// Responsive hook usage
-const isMobile = useMediaQuery('(max-width: 768px)');
-const isTablet = useMediaQuery('(max-width: 1024px)');
-
-// Conditional rendering based on screen size
-return (
-  <SegmentedControl
-    size={isMobile ? "xs" : "sm"}
-    fullWidth={isMobile}
-    data={segments}
-  />
-);
-```
-
 ### Form Validation Patterns
 
 ```typescript
 // ~/app/_components/AddTodoForm.tsx
 import { useForm } from '@mantine/form';
+import { TextInput, Textarea, Button } from '@mantine/core';
 import { z } from 'zod';
 
 const todoSchema = z.object({
@@ -529,8 +555,18 @@ export function AddTodoForm() {
     },
   });
 
+  const createMutation = api.todo.create.useMutation({
+    onSuccess: () => {
+      form.reset();
+      notifications.show({
+        title: 'Success',
+        message: 'Todo created successfully',
+        color: 'green',
+      });
+    },
+  });
+
   const handleSubmit = (values: typeof form.values) => {
-    // Form is already validated
     createMutation.mutate(values);
   };
 
@@ -601,19 +637,6 @@ export const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
 });
 ```
 
-### User Context Propagation
-
-```typescript
-// Service layer receives user context
-export class TodoService {
-  async createTodo(userId: string, request: CreateTodoRequest): Promise<Todo> {
-    // userId comes from authenticated session
-    const context = createRepositoryContext(userId);
-    return this.todoRepository.create(request, context);
-  }
-}
-```
-
 ---
 
 ## Best Practices
@@ -624,19 +647,19 @@ export class TodoService {
 // Interfaces
 interface ITodoRepository { }        // Repository interfaces with 'I' prefix
 interface Todo { }                   // Domain models
-interface DbTodoEntity { }           // Database entities with 'Db' prefix
+interface DbTodoEntity { }           // Database entity types
 
 // Types
-type RepoTodoCreateData = ...;       // Repository types with 'Repo' prefix
+type TodoCreateData = ...;           // Repository types
 type CreateTodoRequest = ...;        // Service layer request types
 type TodoQueryOptions = ...;         // Query option types
 
 // Classes
 class TodoService { }                // Services with 'Service' suffix
-class MongoTodoRepository { }        // Repository implementations
+class DrizzleTodoRepository { }      // Repository implementations
 
 // Functions
-function createRepositoryContext()   // Factory functions with 'create' prefix
+function createDatabaseConnection()  // Factory functions with 'create' prefix
 function mapToDomainModel()          // Mapper functions with 'mapTo' prefix
 ```
 
@@ -644,19 +667,19 @@ function mapToDomainModel()          // Mapper functions with 'mapTo' prefix
 
 ```typescript
 // 1. Node modules
-import { ObjectId } from 'mongodb';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
 // 2. Internal types and interfaces
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
 
 // 3. Internal utilities and constants
-import { createRepositoryContext } from '~/server/lib/constants';
-import * as Err from '~/server/lib/errors/domain-errors';
+import * as Err from '~/server/lib/errors';
+import { commonValidation } from '~/server/lib/validation';
 
 // 4. Implementation imports
-import { MongoTodoRepository } from '~/server/infrastructure/repositories';
+import { DrizzleTodoRepository } from '~/server/infrastructure/repositories';
 ```
 
 ### 3. Error Handling Patterns
@@ -720,11 +743,11 @@ this.logger.error('Failed to create todo', {
 // ❌ DON'T: Define types manually
 interface TodoCreateData {
   title: string;
-  description: string; // Could become out of sync with entity
+  description: string; // Could become out of sync with schema
 }
 
-// ✅ DO: Derive from database entity
-type TodoCreateData = Omit<DbTodoEntity, '_id' | 'createdAt' | 'updatedAt'>;
+// ✅ DO: Derive from database schema
+type TodoCreateData = Omit<DbTodoEntity, 'id' | 'createdAt' | 'updatedAt'>;
 ```
 
 ### ❌ 2. Generic Repository Methods
@@ -742,17 +765,17 @@ interface ITodoRepository {
 }
 ```
 
-### ❌ 3. MongoDB Types in Service Layer
+### ❌ 3. Database Types in Service Layer
 
 ```typescript
-// ❌ DON'T: Import MongoDB types in services
-import { ObjectId } from 'mongodb';
+// ❌ DON'T: Import database types in services
+import { DbTodoEntity } from '~/infrastructure/db/schema';
 
 export class TodoService {
-  async findById(id: ObjectId): Promise<Todo> { } // Wrong!
+  async findById(entity: DbTodoEntity): Promise<Todo> { } // Wrong!
 }
 
-// ✅ DO: Use string IDs in service layer
+// ✅ DO: Use domain types in service layer
 export class TodoService {
   async findById(id: string): Promise<Todo> { } // Correct!
 }
@@ -763,47 +786,26 @@ export class TodoService {
 ```typescript
 // ❌ DON'T: Skip validation in repository
 async create(input: unknown): Promise<Todo> {
-  return this.collection.create(input); // Dangerous!
+  const db = await this.getDatabase();
+  return db.insert(todos).values(input); // Dangerous!
 }
 
 // ✅ DO: Validate with Zod schemas
-async create(input: RepoTodoCreateData): Promise<Todo> {
+async create(input: TodoCreateData): Promise<Todo> {
   const validatedInput = RepoTodoCreateSchema.parse(input);
-  return this.collection.create(validatedInput);
+  const db = await this.getDatabase();
+  return db.insert(todos).values(validatedInput);
 }
 ```
 
-### ❌ 5. Missing Error Context
+### ❌ 5. Direct Database Operations in Services
 
 ```typescript
-// ❌ DON'T: Generic error handling
-try {
-  // operation
-} catch (error) {
-  throw error; // No context!
-}
-
-// ✅ DO: Add structured context
-try {
-  // operation  
-} catch (error) {
-  this.logger.error('Operation failed', {
-    error: error instanceof Error ? error.message : 'Unknown error',
-    operation: 'createTodo',
-    userId,
-    context: input
-  });
-  throw error;
-}
-```
-
-### ❌ 6. Direct MongoDB Operations in Services
-
-```typescript
-// ❌ DON'T: Direct MongoDB operations in services
+// ❌ DON'T: Direct database operations in services
 export class TodoService {
   async createTodo(userId: string, input: CreateTodoRequest): Promise<Todo> {
-    const result = await this.db.collection('todos').insertOne(input); // Wrong layer!
+    const db = await getDatabase();
+    const result = await db.insert(todos).values(input); // Wrong layer!
     return result;
   }
 }
@@ -811,64 +813,11 @@ export class TodoService {
 // ✅ DO: Use repository abstraction
 export class TodoService {
   async createTodo(userId: string, input: CreateTodoRequest): Promise<Todo> {
-    const context = createRepositoryContext(userId);
-    return this.todoRepository.create(input, context); // Correct!
+    return this.todoRepository.create(input); // Correct!
   }
 }
 ```
 
 ---
 
-## Migration Guide
-
-### From Generic Repository to Entity-Based
-
-1. **Define Database Entity**:
-```typescript
-// Before: Scattered type definitions
-interface Todo { id: string; title: string; }
-interface CreateTodo { title: string; }
-
-// After: Single source of truth
-interface DbTodoEntity extends AuditableDocument {
-  _id: ObjectId;
-  title: string;
-  description?: string;
-  completed: boolean;
-  userId: ObjectId;
-}
-```
-
-2. **Create Derived Types**:
-```typescript
-// Derive all repository types from entity
-type RepoTodoCreateData = Omit<DbTodoEntity, '_id' | 'createdAt' | 'updatedAt'>;
-type RepoTodoUpdateData = Partial<Pick<DbTodoEntity, 'title' | 'description' | 'completed'>>;
-```
-
-3. **Replace Generic Methods**:
-```typescript
-// Before: Generic methods
-update(id: string, data: Partial<Todo>): Promise<void>
-
-// After: Dedicated methods
-updateContent(id: string, input: TodoContentUpdate): Promise<void>
-updateStatus(id: string, input: TodoStatusUpdate): Promise<void>
-```
-
-4. **Add Validation**:
-```typescript
-// Add Zod schemas with matches<T>() utility
-export const RepoTodoCreateSchema = matches<RepoTodoCreateData>()(
-  z.object({
-    title: z.string().min(1).max(200),
-    description: z.string().max(1000).optional(),
-    completed: z.boolean().default(false),
-    userId: zObjectId,
-  })
-);
-```
-
----
-
-This design pattern documentation ensures consistency, type safety, and maintainability across the entire application. Following these patterns will result in a robust, scalable codebase that's easy to understand and extend.
+This design pattern documentation ensures consistency, type safety, and maintainability across the entire application using PostgreSQL with Drizzle ORM. Following these patterns will result in a robust, scalable codebase that's easy to understand and extend.

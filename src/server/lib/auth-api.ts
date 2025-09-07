@@ -1,7 +1,8 @@
-import { ObjectId } from 'mongodb';
 import { auth } from './auth';
 import { getDatabase } from './db';
-import type { DbUserEntity } from '../infrastructure/entities/index';
+import { eq } from 'drizzle-orm';
+import { users } from '../infrastructure/db/schema';
+import type { DbUserEntity } from '../infrastructure/entities';
 
 // Better Auth types
 interface BetterAuthUser {
@@ -45,26 +46,9 @@ interface BetterAuthInstance {
   [key: string]: unknown;
 }
 
-interface MongoUserDocument {
-  _id?: ObjectId;
-  email?: string;
-  name?: string;
-  roles?: string[];
-  bio?: string;
-  avatar?: string;
-  website?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-  createdBy?: string;
-  updatedBy?: string;
-  deletedAt?: Date;
-  deletedBy?: string;
-  isActive?: boolean;
-}
-
 /**
  * Better Auth API wrapper for user operations
- * Provides clean interface for user management with Monguard integration
+ * Provides clean interface for user management with Drizzle/PostgreSQL integration
  */
 export class AuthUserAPI {
   private authInstance: BetterAuthInstance | null = null;
@@ -98,7 +82,7 @@ export class AuthUserAPI {
         email: userData.email,
         password: userData.password,
         name: userData.name,
-        roles: userData.roles ?? ['admin'],
+        roles: userData.roles ?? ['user'],
         bio: userData.bio,
         avatar: userData.avatar,
         website: userData.website,
@@ -110,19 +94,18 @@ export class AuthUserAPI {
 
       const betterAuthUser = result.data.user;
 
-      // Convert to our User type
+      // Convert to our User type (roles now handled in separate tables)
       const user: DbUserEntity = {
-        _id: new ObjectId(betterAuthUser.id),
+        id: betterAuthUser.id,
         email: betterAuthUser.email,
         name: betterAuthUser.name,
-        roles: (betterAuthUser.roles ?? ['admin']) as ('admin')[],
-        bio: betterAuthUser.bio,
-        avatar: betterAuthUser.avatar,
-        website: betterAuthUser.website,
+        emailVerified: false, // Default value since Better Auth user might not have this field yet
+        image: null, // Default value since Better Auth user might not have this field yet
+        bio: betterAuthUser.bio ?? null,
+        avatar: betterAuthUser.avatar ?? null,
+        website: betterAuthUser.website ?? null,
         createdAt: betterAuthUser.createdAt,
         updatedAt: betterAuthUser.updatedAt,
-        createdBy: betterAuthUser.createdBy,
-        updatedBy: betterAuthUser.updatedBy,
       };
 
       console.log(`[AuthUserAPI] User created successfully: ${user.email}`);
@@ -139,35 +122,15 @@ export class AuthUserAPI {
   async getUserById(userId: string): Promise<DbUserEntity | null> {
     try {
       const db = await getDatabase();
-      const userCollection = db.collection('user');
       
-      // Find user by ID - Better Auth stores as ObjectId in _id field
-      const userData = await userCollection.findOne({ 
-        _id: new ObjectId(userId)
-      }) as MongoUserDocument | null;
+      // Find user by ID using Drizzle
+      const [userData] = await db.select().from(users).where(eq(users.id, userId));
 
       if (!userData) {
         return null;
       }
 
-      // Convert to our User type
-      const user: DbUserEntity = {
-        _id: userData._id ?? new ObjectId(),
-        email: userData.email ?? '',
-        name: userData.name ?? '',
-        roles: (userData.roles ?? ['admin']) as ('admin')[],
-        bio: userData.bio,
-        avatar: userData.avatar,
-        website: userData.website,
-        createdAt: userData.createdAt ?? new Date(),
-        updatedAt: userData.updatedAt ?? new Date(),
-        createdBy: userData.createdBy,
-        updatedBy: userData.updatedBy,
-        deletedAt: userData.deletedAt,
-        deletedBy: userData.deletedBy,
-      };
-
-      return user;
+      return userData;
     } catch (error) {
       console.error('[AuthUserAPI] Error getting user by ID:', error);
       return null;
@@ -180,35 +143,15 @@ export class AuthUserAPI {
   async getUserByEmail(email: string): Promise<DbUserEntity | null> {
     try {
       const db = await getDatabase();
-      const userCollection = db.collection('user');
       
-      // Find user by email
-      const userData = await userCollection.findOne({ 
-        email: email 
-      }) as MongoUserDocument | null;
+      // Find user by email using Drizzle
+      const [userData] = await db.select().from(users).where(eq(users.email, email));
 
       if (!userData) {
         return null;
       }
 
-      // Convert to our User type
-      const user: DbUserEntity = {
-        _id: userData._id ?? new ObjectId(),
-        email: userData.email ?? '',
-        name: userData.name ?? '',
-        roles: (userData.roles ?? ['admin']) as ('admin')[],
-        bio: userData.bio,
-        avatar: userData.avatar,
-        website: userData.website,
-        createdAt: userData.createdAt ?? new Date(),
-        updatedAt: userData.updatedAt ?? new Date(),
-        createdBy: userData.createdBy,
-        updatedBy: userData.updatedBy,
-        deletedAt: userData.deletedAt,
-        deletedBy: userData.deletedBy,
-      };
-
-      return user;
+      return userData;
     } catch (error) {
       console.error('[AuthUserAPI] Error getting user by email:', error);
       return null;
@@ -239,14 +182,16 @@ export class AuthUserAPI {
   }
 
   /**
-   * Get all users (including soft-deleted if specified)
+   * Get all users
    */
-  async getAllUsers(_includeSoftDeleted = false): Promise<DbUserEntity[]> {
+  async getAllUsers(): Promise<DbUserEntity[]> {
     try {
-      // Note: Better Auth doesn't have a direct "get all users" API
-      // This would need to be implemented via direct database access
-      // For now, we'll throw an error to indicate this needs custom implementation
-      throw new Error('getAllUsers not implemented - requires direct database access');
+      const db = await getDatabase();
+      
+      // Get all users using Drizzle
+      const allUsers = await db.select().from(users);
+
+      return allUsers;
     } catch (error) {
       console.error('[AuthUserAPI] Error getting all users:', error);
       throw new Error(`Failed to get all users: ${error instanceof Error ? error.message : String(error)}`);

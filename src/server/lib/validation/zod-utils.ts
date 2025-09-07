@@ -1,37 +1,24 @@
 import { z } from 'zod';
-import { ObjectId } from 'mongodb';
 
 /**
- * Zod schema for MongoDB ObjectId validation and transformation
- * Accepts string input, validates ObjectId format, and transforms to ObjectId instance
+ * Zod schema for UUID validation
  */
-export const zObjectId = z
-  .string()
-  .refine((val) => ObjectId.isValid(val), { 
-    message: 'Invalid ObjectId format. Expected 24-character hex string.' 
-  })
-  .transform((val) => new ObjectId(val));
+export const zUuid = z.string().uuid('Invalid UUID format');
 
 /**
- * Optional ObjectId schema - accepts string or undefined, transforms valid strings to ObjectId
+ * Optional UUID schema - accepts string or undefined, validates valid strings
  */
-export const zObjectIdOptional = z
-  .string()
-  .optional()
-  .refine((val) => val === undefined || ObjectId.isValid(val), {
-    message: 'Invalid ObjectId format. Expected 24-character hex string or undefined.'
-  })
-  .transform((val) => val ? new ObjectId(val) : undefined);
+export const zUuidOptional = z.string().uuid('Invalid UUID format').optional();
 
 /**
- * Array of ObjectIds schema - accepts string[], validates each, transforms to ObjectId[]
+ * Array of UUIDs schema - accepts string[], validates each
  */
-export const zObjectIdArray = z
-  .array(z.string())
-  .refine((arr) => arr.every(id => ObjectId.isValid(id)), {
-    message: 'All items must be valid ObjectId format (24-character hex strings).'
-  })
-  .transform((arr) => arr.map(id => new ObjectId(id)));
+export const zUuidArray = z.array(z.string().uuid('Invalid UUID format'));
+
+// Backward compatibility aliases (for gradual migration)
+export const zObjectId = zUuid;
+export const zObjectIdOptional = zUuidOptional;
+export const zObjectIdArray = zUuidArray;
 
 /**
  * Type assertion helper to ensure schema output exactly matches expected type

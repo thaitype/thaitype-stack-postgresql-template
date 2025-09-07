@@ -18,9 +18,9 @@ import type { DbUserEntity } from '~/server/infrastructure/entities';
 
 /**
  * Data required to create a new user record
- * Omits auto-generated fields: _id, createdAt, updatedAt, deletedAt
+ * Omits auto-generated fields: id, createdAt, updatedAt
  */
-export type UserCreateData = Omit<DbUserEntity, '_id' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
+export type UserCreateData = Omit<DbUserEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Full user data with all fields (for domain layer responses)
@@ -45,10 +45,12 @@ export type UserBasicInfoUpdate = Pick<DbUserEntity, 'name' | 'bio' | 'avatar' |
 export type UserBasicInfoPartialUpdate = Partial<UserBasicInfoUpdate>;
 
 /**
- * Update user roles
+ * Update user roles (now handled by role normalization tables)
  * Used by: updateRoles() repository method
  */
-export type UserRolesUpdate = Pick<DbUserEntity, 'roles'>;
+export type UserRolesUpdate = {
+  roles: string[];
+};
 
 /**
  * Update user email
@@ -56,11 +58,6 @@ export type UserRolesUpdate = Pick<DbUserEntity, 'roles'>;
  */
 export type UserEmailUpdate = Pick<DbUserEntity, 'email'>;
 
-/**
- * Update user active status
- * Used by: updateStatus() repository method
- */
-export type UserStatusUpdate = Pick<DbUserEntity, 'isActive'>;
 
 /**
  * Update user bio only
@@ -111,7 +108,7 @@ export type UserProfilePartialUpdate = Partial<UserProfileUpdate>;
  * Used by: findByRole() repository method
  */
 export type UserRoleQuery = {
-  role: DbUserEntity['roles'][0];
+  role: string;
   includeInactive?: boolean;
 };
 
@@ -138,7 +135,7 @@ export type UserActiveQuery = {
  */
 export type UserFilterQuery = {
   email?: string;
-  roles?: DbUserEntity['roles'];
+  roles?: string[];
   isActive?: boolean;
   limit?: number;
   skip?: number;
@@ -156,7 +153,7 @@ export type UserFilterQuery = {
 export type UserCreateRequest = {
   email: string;
   name: string;
-  roles?: DbUserEntity['roles'];
+  roles?: string[];
   bio?: string;
   avatar?: string;
   website?: string;
@@ -169,7 +166,7 @@ export type UserCreateRequest = {
  */
 export type UserUpdateRequest = {
   name?: string;
-  roles?: DbUserEntity['roles'];
+  roles?: string[];
   bio?: string;
   avatar?: string;
   website?: string;

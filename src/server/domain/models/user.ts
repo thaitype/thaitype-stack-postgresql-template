@@ -2,11 +2,10 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  roles: ('admin')[];
-  bio?: string;
-  avatar?: string;
-  website?: string;
-  isActive: boolean;
+  roles: string[];
+  bio?: string | null;
+  avatar?: string | null;
+  website?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -14,26 +13,24 @@ export interface User {
 export interface CreateUserRequest {
   email: string;
   name: string;
-  roles?: ('admin')[];
-  bio?: string;
-  avatar?: string;
-  website?: string;
-  isActive?: boolean;
+  roles?: string[];
+  bio?: string | null;
+  avatar?: string | null;
+  website?: string | null;
 }
 
 export interface UpdateUserRequest {
   name?: string;
-  roles?: ('admin')[];
-  bio?: string;
-  avatar?: string;
-  website?: string;
-  isActive?: boolean;
+  roles?: string[];
+  bio?: string | null;
+  avatar?: string | null;
+  website?: string | null;
 }
 
 export interface UpdateProfileRequest {
   name?: string;
-  bio?: string;
-  avatar?: string;
-  website?: string;
+  bio?: string | null;
+  avatar?: string | null;
+  website?: string | null;
 }
 

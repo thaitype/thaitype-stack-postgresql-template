@@ -1,8 +1,6 @@
 # Todo App Template - Next.js Enterprise Stack
 
 > This project is using upstream from [thaitype-stack-mongodb-template](https://github.com/thaitype/thaitype-stack-mongodb-template), however, this will be a sql-based template with drizzleorm
->
-> This project is in-progress. Please check back later for updates.
 
 A production-ready **Todo Application Template** built with Next.js 15, implementing enterprise-grade patterns and modern development practices. This template serves as a robust foundation for building scalable full-stack applications with authentication, CRUD operations, and real-time updates.
 
@@ -13,7 +11,7 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 - 🎨 **Modern UI** - Mantine components with responsive design
 - 🏗️ **Enterprise Architecture** - Entity-based repository pattern
 - 🔒 **Type Safety** - Full TypeScript with tRPC API layer
-- 📊 **Database** - MongoDB with audit logging via Monguard
+- 📊 **Database** - PostgreSQL with Drizzle ORM
 - ⚡ **Performance** - Next.js 15 with App Router and React 19
 - 🎯 **Production Ready** - ESLint, Prettier, structured logging
 
@@ -26,8 +24,8 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 
 ### Backend & API
 - **[tRPC](https://trpc.io)** - End-to-end typesafe APIs
-- **[MongoDB](https://mongodb.com)** - Document database
-- **[Monguard](https://github.com/thaitype/monguard)** - MongoDB wrapper with audit logging
+- **[PostgreSQL](https://postgresql.org)** - Relational database
+- **[Drizzle ORM](https://orm.drizzle.team)** - TypeScript ORM with SQL-like syntax
 - **[Better Auth](https://www.better-auth.com)** - Modern authentication library
 - **[Zod](https://zod.dev)** - TypeScript-first schema validation
 
@@ -40,7 +38,6 @@ A production-ready **Todo Application Template** built with Next.js 15, implemen
 - **[ESLint](https://eslint.org)** - Code linting
 - **[Prettier](https://prettier.io)** - Code formatting  
 - **[Pino](https://getpino.io)** - Structured logging
-- **[OpenTelemetry](https://opentelemetry.io)** - Observability
 
 ## 🏗️ Architecture
 
@@ -69,7 +66,7 @@ src/
 - **Entity-First Design**: All types derive from database entities
 - **Domain-Driven Services**: Business logic with string-based IDs  
 - **Type-Safe Validation**: Zod schemas with `matches<T>()` utility
-- **Audit Logging**: Automatic change tracking via Monguard
+- **Native Features**: Drizzle's built-in UUID and timestamp management
 - **Structured Logging**: Request tracing and error context
 
 ## 🚦 Quick Start
@@ -77,7 +74,8 @@ src/
 ### Prerequisites
 - **Node.js 18+** 
 - **pnpm** (recommended) or npm
-- **MongoDB** instance (local or MongoDB Atlas)
+- **Docker & Docker Compose** (recommended for local development)
+- **PostgreSQL** instance (local, cloud, or via Docker)
 
 ### 1. Clone and Install
 ```bash
@@ -86,32 +84,246 @@ cd my-todo-app
 pnpm install
 ```
 
-### 2. Environment Setup
+### 2. Choose Development Environment
+
+#### Option A: Docker Development (Recommended)
+
+1. **Start Services**
+   ```bash
+   # Start PostgreSQL and Drizzle Gateway containers
+   docker-compose up -d
+   ```
+
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   The `.env.example` is pre-configured for Docker development:
+   ```env
+   # Database (connects to Docker container via localhost port mapping)
+   DATABASE_URL="postgresql://devuser:devpass@localhost:5432/devdb"
+   
+   # Authentication
+   BETTER_AUTH_SECRET="your-secret-key-change-in-production"
+   NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+   
+   # App Configuration  
+   NODE_ENV="development"
+   PORT="3000"
+   ```
+
+#### Option B: Local PostgreSQL
+
+If you prefer to use a local PostgreSQL installation:
+
+1. **Create Database**
+   ```bash
+   createdb devdb
+   ```
+
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Update your `.env` file with your local PostgreSQL credentials:
+   ```env
+   DATABASE_URL="postgresql://your-username:your-password@localhost:5432/devdb"
+   ```
+
+### 3. Database Setup
 ```bash
-cp .env.example .env
+# Generate migration files from schema
+pnpm db:generate
+
+# Apply migrations to create database tables
+pnpm db:migrate
+
+# Seed the database with sample data (optional)
+pnpm db:seed
 ```
 
-Configure your `.env` file:
-```env
-# Database
-MONGODB_URI="mongodb://localhost:27017"
-DB_NAME="todo_app"
-
-# Authentication
-BETTER_AUTH_SECRET="your-secret-key-here"
-NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000/api/auth"
-
-# App Configuration  
-NODE_ENV="development"
-PORT="3000"
-```
-
-### 3. Start Development
+### 4. Start Development
 ```bash
 pnpm dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to see your app!
+
+## 🗄️ Database Setup Guide
+
+### Understanding Database Commands
+
+This template uses **Drizzle ORM** with **PostgreSQL**. Here's the recommended workflow:
+
+#### 1. Migration-Based Workflow (Recommended for Production)
+```bash
+# 1. Generate migration files from your schema changes
+pnpm db:generate
+
+# 2. Review generated migrations in ./drizzle/ directory
+# 3. Apply migrations to database
+pnpm db:migrate
+
+# 4. Seed with sample data (optional)
+pnpm db:seed
+```
+
+#### 2. Push Workflow (Development Only)
+```bash
+# Push schema directly to database (bypasses migrations)
+pnpm db:push
+
+# Seed with sample data (optional)  
+pnpm db:seed
+```
+
+### Docker Development Setup
+
+#### Starting the Stack
+```bash
+# Start all services (PostgreSQL + Drizzle Gateway)
+docker-compose up -d
+
+# View service status
+docker-compose ps
+
+# View logs
+docker-compose logs postgres
+docker-compose logs drizzle-gateway
+```
+
+#### Stopping the Stack
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (WARNING: destroys all data)
+docker-compose down -v
+```
+
+### First Time Setup (Any Environment)
+
+1. **Database Setup**
+   With Docker, the database is automatically created. For local PostgreSQL:
+   ```bash
+   # Using psql (if PostgreSQL is installed locally)
+   createdb devdb
+   
+   # Or connect to your cloud database provider
+   # Update DATABASE_URL in .env with your connection string
+   ```
+
+2. **Set Up Schema**
+   ```bash
+   # Generate initial migration files
+   pnpm db:generate
+   
+   # Apply migrations to create tables
+   pnpm db:migrate
+   ```
+
+3. **Add Sample Data**
+   ```bash
+   # Populate database with test data
+   pnpm db:seed
+   ```
+
+### Sample Data Overview
+
+Running `pnpm db:seed` creates:
+
+- **2 Roles**: `admin`, `user`  
+
+### Database Management
+
+#### View Database
+
+**With Docker (Recommended)**:
+```bash
+# Drizzle Gateway is automatically available via Docker
+# Opens at http://localhost:4983
+open http://localhost:4983
+```
+
+**Without Docker**:
+```bash
+# Open Drizzle Studio - visual database browser
+pnpm db:studio
+# Opens at http://localhost:4983
+```
+
+#### Reset Database (Development)
+```bash
+# WARNING: This destroys all data
+pnpm db:drop
+
+# Recreate schema
+pnpm db:migrate
+
+# Add sample data
+pnpm db:seed
+```
+
+#### Migration vs Push
+
+| Command | Use Case | Description |
+|---------|----------|-------------|
+| `db:migrate` | **Production** | Applies versioned migrations, maintains history |
+| `db:push` | **Development** | Direct schema sync, no migration files |
+
+### Troubleshooting
+
+#### "relation does not exist" Error
+```bash
+# This means tables haven't been created yet
+# Solution: Run migrations first
+pnpm db:migrate
+pnpm db:seed
+```
+
+#### Database Connection Errors
+
+**Docker Environment**:
+1. Check if Docker containers are running: `docker-compose ps`
+2. Restart services: `docker-compose restart postgres`
+3. Check container logs: `docker-compose logs postgres`
+4. Verify your `.env` uses: `postgresql://devuser:devpass@localhost:5432/devdb`
+
+**Local PostgreSQL**:
+1. Check your `DATABASE_URL` in `.env`
+2. Ensure PostgreSQL service is running
+3. Verify database exists and credentials are correct
+
+#### Migration Conflicts
+```bash
+# Reset and start fresh (loses all data)
+pnpm db:drop
+pnpm db:generate  
+pnpm db:migrate
+pnpm db:seed
+```
+
+#### Environment Variables Not Loaded
+The seed script automatically loads `.env` file. Ensure your `.env` contains:
+
+**Docker Development**:
+```env
+NODE_ENV=development
+DATABASE_URL=postgresql://devuser:devpass@localhost:5432/devdb
+```
+
+**Local PostgreSQL**:
+```env
+NODE_ENV=development
+DATABASE_URL=postgresql://your-username:your-password@localhost:5432/devdb
+```
+
+#### Docker Networking Notes
+- **App Connection**: Uses `localhost:5432` (host machine to container port mapping)
+- **Drizzle Gateway Connection**: Uses `postgres:5432` (container-to-container networking)
+- **Credentials**: Both use `devuser:devpass` for database `devdb`
 
 ## 📋 Development Commands
 
@@ -121,6 +333,14 @@ pnpm dev              # Start development server with Turbo
 pnpm build            # Build for production
 pnpm start            # Start production server
 pnpm preview          # Build and start production server
+
+# Database
+pnpm db:generate      # Generate migration files from schema
+pnpm db:migrate       # Apply migrations to create/update tables
+pnpm db:push          # Push schema directly (development only)
+pnpm db:studio        # Open Drizzle Studio (database GUI)
+pnpm db:seed          # Seed database with sample data
+pnpm db:drop          # Drop all database tables (destructive)
 
 # Code Quality
 pnpm lint             # Run ESLint
@@ -135,7 +355,7 @@ pnpm format:write     # Apply Prettier formatting
 
 ## 🏛️ Design Patterns
 
-This template follows enterprise-grade design patterns documented in [`docs/entity-architecture.md`](docs/entity-architecture.md).
+This template follows enterprise-grade design patterns documented in [`docs/repo-architecture.md`](docs/repo-architecture.md).
 
 ### Core Principles
 
@@ -155,12 +375,12 @@ interface Todo {
   userId: string;
 }
 
-// Database Entity (ObjectIds)  
+// Database Entity (UUIDs)  
 interface DbTodoEntity {
-  _id: ObjectId;
+  id: string;
   title: string;
   completed: boolean;
-  userId: ObjectId;
+  userId: string;
 }
 
 // Repository Interface (domain types)
@@ -207,30 +427,85 @@ function MyComponent() {
 
 ## 📊 Database Schema
 
-### User Collection
+### Users Table
 ```typescript
-interface DbUserEntity extends AuditableDocument {
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  roles: string[];
+interface DbUserEntity {
+  id: string;          // UUID primary key (auto-generated)
+  email: string;       // Unique email address
+  name: string;        // User display name
+  bio?: string;        // Optional user biography
+  avatar?: string;     // Optional avatar URL
+  website?: string;    // Optional website URL
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
 }
 ```
 
-### Todo Collection
+### Roles Table
+```typescript
+interface DbRoleEntity {
+  id: string;          // UUID primary key (auto-generated)
+  name: string;        // Unique role name (e.g., 'admin', 'user')
+  description?: string; // Optional role description
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
+}
+```
+
+### User Roles Junction Table
+```typescript
+interface DbUserRoleEntity {
+  id: string;          // UUID primary key (auto-generated)
+  userId: string;      // Foreign key to users.id
+  roleId: string;      // Foreign key to roles.id
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
+  // Unique constraint on (userId, roleId)
+}
+```
+
+### Todos Table
 ```typescript  
-interface DbTodoEntity extends AuditableDocument {
-  title: string;
-  description?: string;
-  completed: boolean;
-  userId: ObjectId;
+interface DbTodoEntity {
+  id: string;          // UUID primary key (auto-generated)
+  title: string;       // Todo title
+  description?: string; // Optional todo description
+  completed: boolean;  // Completion status
+  userId: string;      // Foreign key to users.id
+  // Auto-managed timestamps
+  createdAt: Date;     // Auto-set on creation
+  updatedAt: Date;     // Auto-updated on changes
 }
 ```
 
-All entities include automatic audit fields via Monguard:
-- `createdAt`, `updatedAt`, `deletedAt`
-- `createdBy`, `updatedBy`, `deletedBy`
-- Version tracking with `__v`
+### Domain Models (Service Layer)
+
+The service layer works with normalized domain models:
+
+```typescript
+interface User {
+  id: string;          // String representation of UUID
+  email: string;
+  name: string;
+  roles: string[];     // Array of role names (e.g., ['admin', 'user'])
+  bio?: string;
+  avatar?: string;
+  website?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Database Features
+
+- **UUID Primary Keys**: All tables use UUID for primary keys
+- **Automatic Timestamps**: `createdAt` and `updatedAt` managed automatically
+- **Normalized Roles**: Many-to-many relationship between users and roles
+- **Foreign Key Constraints**: Referential integrity enforced
+- **Unique Constraints**: Email uniqueness, role name uniqueness, user-role pairs
 
 ## 🚀 Deployment
 
@@ -243,7 +518,7 @@ pnpm build
 Set these in your production environment:
 ```env
 NODE_ENV="production"
-MONGODB_URI="mongodb+srv://..."
+DATABASE_URL="postgresql://user:pass@host:5432/dbname"
 BETTER_AUTH_SECRET="secure-production-secret"
 NEXT_PUBLIC_BETTER_AUTH_URL="https://yourdomain.com/api/auth"
 ```
@@ -286,12 +561,11 @@ docker run -p 3000:3000 todo-app
 ├── Responsive UI ✅
 ├── Production Logging ✅
 ├── Type Safety ✅
-└── Audit Trail ✅
 ```
 
 ## 📚 Documentation
 
-- **[Entity Architecture Guide](docs/entity-architecture.md)** - Repository pattern details
+- **[Entity Architecture Guide](docs/repo-architecture.md)** - Repository pattern details
 - **[CLAUDE.md](CLAUDE.md)** - AI development guidelines
 - **[API Documentation](#)** - tRPC endpoint reference (generated)
 
@@ -313,7 +587,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [T3 Stack](https://create.t3.gg/) foundation
 - UI components by [Mantine](https://mantine.dev)
-- Database management by [Monguard](https://github.com/thaitype/monguard)
+- Database ORM by [Drizzle](https://orm.drizzle.team)
 - Authentication by [Better Auth](https://www.better-auth.com)
 
 ---

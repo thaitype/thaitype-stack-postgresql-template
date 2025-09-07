@@ -1,5 +1,4 @@
 import type { Todo } from '~/server/domain/models';
-import type { RepositoryContext } from '~/server/lib/constants';
 import type {
   TodoCreateRequest,
   TodoContentPartialUpdate,
@@ -28,7 +27,7 @@ export interface ITodoRepository {
   /**
    * Create a new todo record
    */
-  create(input: TodoCreateRequest, context: RepositoryContext): Promise<Todo>;
+  create(input: TodoCreateRequest): Promise<Todo>;
 
   /**
    * Find todo by ID (user-scoped for security)
@@ -36,9 +35,9 @@ export interface ITodoRepository {
   findById(id: string, userId: string): Promise<Todo | null>;
 
   /**
-   * Delete todo record (soft delete)
+   * Delete todo record (hard delete)
    */
-  delete(id: string, userId: string, context: RepositoryContext): Promise<void>;
+  delete(id: string, userId: string): Promise<void>;
 
   // =============================================================================
   // DEDICATED UPDATE METHODS (No generic update!)
@@ -47,27 +46,27 @@ export interface ITodoRepository {
   /**
    * Update todo content (title and description)
    */
-  updateContent(id: string, input: TodoContentPartialUpdate, userId: string, context: RepositoryContext): Promise<void>;
+  updateContent(id: string, input: TodoContentPartialUpdate, userId: string): Promise<void>;
 
   /**
    * Update todo completion status
    */
-  updateStatus(id: string, input: TodoStatusUpdate, userId: string, context: RepositoryContext): Promise<void>;
+  updateStatus(id: string, input: TodoStatusUpdate, userId: string): Promise<void>;
 
   /**
    * Update todo title only
    */
-  updateTitle(id: string, input: TodoTitleUpdate, userId: string, context: RepositoryContext): Promise<void>;
+  updateTitle(id: string, input: TodoTitleUpdate, userId: string): Promise<void>;
 
   /**
    * Update todo description only
    */
-  updateDescription(id: string, input: TodoDescriptionUpdate, userId: string, context: RepositoryContext): Promise<void>;
+  updateDescription(id: string, input: TodoDescriptionUpdate, userId: string): Promise<void>;
 
   /**
    * Toggle todo completion status
    */
-  toggleCompletion(id: string, userId: string, context: RepositoryContext): Promise<Todo>;
+  toggleCompletion(id: string, userId: string): Promise<Todo>;
 
   // =============================================================================
   // QUERY OPERATIONS

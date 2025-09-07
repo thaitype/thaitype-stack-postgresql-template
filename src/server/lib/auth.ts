@@ -1,71 +1,87 @@
 import { betterAuth } from 'better-auth';
-import { mongodbAdapter } from 'better-auth/adapters/mongodb';
-import { MongoClient } from 'mongodb';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { env } from '~/env';
-import { initializeDatabaseConfig } from './db';
+import { getDatabase, initializeDatabaseConfig } from './db';
+import { createAppConfig } from '../config/types';
 
-// Initialize database configuration for auth hooks
-initializeDatabaseConfig(
-  {
-    uri: env.MONGODB_URI,
-    name: env.DB_NAME,
-  },
-  env.NODE_ENV
-);
+// Lazy-initialized auth instance
+let authInstance: ReturnType<typeof betterAuth> | null = null;
 
-// Create MongoDB connection for Better Auth
-const mongoClient = new MongoClient(env.MONGODB_URI);
-await mongoClient.connect();
-const db = mongoClient.db(env.DB_NAME);
+async function createAuthInstance() {
+  // Initialize database configuration first
+  const appConfig = createAppConfig();
+  initializeDatabaseConfig(appConfig.database, appConfig.server.nodeEnv);
 
-// Standard Better Auth export pattern
-export const auth = betterAuth({
-  database: mongodbAdapter(db),
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false, // Set to true in production
-  },
-  session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-    cookieCache: {
+  // Get Drizzle database instance for Better Auth
+  const db = await getDatabase();
+
+  return betterAuth({
+    database: drizzleAdapter(db, {
+      provider: 'pg', // PostgreSQL
+    }),
+    emailAndPassword: {
       enabled: true,
-      maxAge: 60 * 5, // 5 minutes
+      requireEmailVerification: false, // Set to true in production
     },
-  },
-  user: {
-    additionalFields: {
-      // Additional fields for Monguard compatibility
-      roles: {
-        type: 'string[]',
-        required: false,
-        defaultValue: ['admin'],
-        input: true, // Allow roles to be set programmatically
+    session: {
+      expiresIn: 60 * 60 * 24 * 7, // 7 days
+      updateAge: 60 * 60 * 24, // 1 day
+      cookieCache: {
+        enabled: true,
+        maxAge: 60 * 5, // 5 minutes
       },
-      // Better Auth does not support ObjectId types directly,
-      // Monguard auto-fields (managed by hooks)
     },
-  },
-  databaseHooks: {
     user: {
-      // create: {
-      //   after: handleUserCreate
-      // },
-      // update: {
-      //   after: handleUserUpdate
-      // },
+      additionalFields: {
+      },
     },
-  },
-  secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL,
-  trustedOrigins: [env.NEXT_PUBLIC_BETTER_AUTH_URL],
-  advanced: {
-    // https://www.better-auth.com/docs/integrations/hono#cross-domain-cookies
-    // TODO: Enable this if you need cross-domain cookies
-    // This is useful if your frontend and backend are on different subdomains
-    // In the production, I'll disable this
-    crossSubDomainCookies: {
-      enabled: true
+    databaseHooks: {
+      user: {
+        // create: {
+        //   after: handleUserCreate
+        // },
+        // update: {
+        //   after: handleUserUpdate
+        // },
+      },
+    },
+    secret: env.BETTER_AUTH_SECRET,
+    baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL,
+    trustedOrigins: [env.NEXT_PUBLIC_BETTER_AUTH_URL],
+    advanced: {
+      database: {
+        // Disable ID generation to use our own IDs (text-based)
+        // See: https://www.better-auth.com/docs/concepts/database?utm_source=chatgpt.com#id-generation
+        generateId: false,
+      },
+      // https://www.better-auth.com/docs/integrations/hono#cross-domain-cookies
+      // TODO: Enable this if you need cross-domain cookies
+      // This is useful if your frontend and backend are on different subdomains
+      // In the production, I'll disable this
+      crossSubDomainCookies: {
+        enabled: true
+      }
     }
+  });
+}
+
+/**
+ * Get the auth instance, creating it if necessary
+ */
+export async function getAuth() {
+  authInstance ??= await createAuthInstance();
+  return authInstance;
+}
+
+/**
+ * Legacy export for compatibility - use getAuth() for new code
+ * @deprecated Use getAuth() instead for proper async initialization
+ */
+export const auth = {
+  get handler() {
+    throw new Error('Use getAuth() for proper async initialization instead of auth.handler');
+  },
+  get api() {
+    throw new Error('Use getAuth() for proper async initialization instead of auth.api');
   }
-});
+};

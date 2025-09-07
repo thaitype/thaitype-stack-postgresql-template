@@ -14,7 +14,6 @@
 
 import type { AppContext } from '~/server/context/app-context';
 import type { ITodoRepository, Todo } from '~/server/domain';
-import { createRepositoryContext } from '~/server/lib/constants';
 import * as Err from '~/server/lib/errors/domain-errors';
 
 export interface CreateTodoRequest {
@@ -76,13 +75,11 @@ export class TodoService {
         });
       }
 
-      const context = createRepositoryContext(userId);
-
       const todo = await this.todoRepository.create({
         title: request.title.trim(),
         description: request.description?.trim(),
         userId
-      }, context);
+      });
 
       this.appContext.logger.info('Todo created successfully', {
         todoId: todo.id,
@@ -220,21 +217,19 @@ export class TodoService {
         });
       }
 
-      const context = createRepositoryContext(userId);
-
       // Update content if title or description changed
       if (request.title !== undefined || request.description !== undefined) {
         await this.todoRepository.updateContent(todoId, {
           title: request.title?.trim(),
           description: request.description?.trim()
-        }, userId, context);
+        }, userId);
       }
 
       // Update status if changed
       if (request.completed !== undefined) {
         await this.todoRepository.updateStatus(todoId, {
           completed: request.completed
-        }, userId, context);
+        }, userId);
       }
 
       this.appContext.logger.info('Todo updated successfully', {
@@ -266,9 +261,7 @@ export class TodoService {
         service: 'TodoService'
       });
 
-      const context = createRepositoryContext(userId);
-
-      const updatedTodo = await this.todoRepository.toggleCompletion(todoId, userId, context);
+      const updatedTodo = await this.todoRepository.toggleCompletion(todoId, userId);
 
       this.appContext.logger.info('Todo toggled successfully', {
         todoId,
@@ -302,9 +295,7 @@ export class TodoService {
         service: 'TodoService'
       });
 
-      const context = createRepositoryContext(userId);
-
-      await this.todoRepository.delete(todoId, userId, context);
+      await this.todoRepository.delete(todoId, userId);
 
       this.appContext.logger.info('Todo deleted successfully', {
         todoId,

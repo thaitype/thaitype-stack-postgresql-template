@@ -8,7 +8,6 @@ export const CreateUserSchema = z.object({
   bio: z.string().optional(),
   avatar: z.string().url().optional(),
   website: z.string().url().optional(),
-  isActive: z.boolean().default(true),
 });
 
 export const UpdateUserSchema = z.object({
@@ -17,7 +16,6 @@ export const UpdateUserSchema = z.object({
   bio: z.string().optional(),
   avatar: z.string().url().optional(),
   website: z.string().url().optional(),
-  isActive: z.boolean().optional(),
 });
 
 export const UpdateProfileSchema = z.object({

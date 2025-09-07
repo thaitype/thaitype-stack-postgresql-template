@@ -1,11 +1,9 @@
 import type { User } from '~/server/domain/models';
-import type { RepositoryContext } from '~/server/lib/constants';
 import type {
   UserCreateRequest,
   UserBasicInfoPartialUpdate,
   UserRolesUpdate,
   UserEmailUpdate,
-  UserStatusUpdate,
   UserProfilePartialUpdate,
   UserNameUpdate,
   UserBioUpdate,
@@ -32,7 +30,7 @@ export interface IUserRepository {
   /**
    * Create a new user record (integrates with Better Auth)
    */
-  create(input: UserCreateRequest, context: RepositoryContext): Promise<User>;
+  create(input: UserCreateRequest): Promise<User>;
 
   /**
    * Find user by ID (uses Better Auth API)
@@ -40,9 +38,9 @@ export interface IUserRepository {
   findById(id: string): Promise<User | null>;
 
   /**
-   * Delete user record (soft delete)
+   * Delete user record (hard delete)
    */
-  delete(id: string, context: RepositoryContext): Promise<void>;
+  delete(id: string): Promise<void>;
 
   // =============================================================================
   // DEDICATED UPDATE METHODS (No generic update!)
@@ -51,47 +49,43 @@ export interface IUserRepository {
   /**
    * Update user basic information (name, bio, avatar, website)
    */
-  updateBasicInfo(id: string, input: UserBasicInfoPartialUpdate, context: RepositoryContext): Promise<void>;
+  updateBasicInfo(id: string, input: UserBasicInfoPartialUpdate): Promise<void>;
 
   /**
    * Update user roles
    */
-  updateRoles(id: string, input: UserRolesUpdate, context: RepositoryContext): Promise<void>;
+  updateRoles(id: string, input: UserRolesUpdate): Promise<void>;
 
   /**
    * Update user email
    */
-  updateEmail(id: string, input: UserEmailUpdate, context: RepositoryContext): Promise<void>;
+  updateEmail(id: string, input: UserEmailUpdate): Promise<void>;
 
-  /**
-   * Update user active status
-   */
-  updateStatus(id: string, input: UserStatusUpdate, context: RepositoryContext): Promise<void>;
 
   /**
    * Update user profile (name, bio, avatar, website - excludes sensitive fields)
    */
-  updateProfile(id: string, input: UserProfilePartialUpdate, context: RepositoryContext): Promise<User | null>;
+  updateProfile(id: string, input: UserProfilePartialUpdate): Promise<User | null>;
 
   /**
    * Update user name only
    */
-  updateName(id: string, input: UserNameUpdate, context: RepositoryContext): Promise<void>;
+  updateName(id: string, input: UserNameUpdate): Promise<void>;
 
   /**
    * Update user bio only
    */
-  updateBio(id: string, input: UserBioUpdate, context: RepositoryContext): Promise<void>;
+  updateBio(id: string, input: UserBioUpdate): Promise<void>;
 
   /**
    * Update user avatar only
    */
-  updateAvatar(id: string, input: UserAvatarUpdate, context: RepositoryContext): Promise<void>;
+  updateAvatar(id: string, input: UserAvatarUpdate): Promise<void>;
 
   /**
    * Update user website only
    */
-  updateWebsite(id: string, input: UserWebsiteUpdate, context: RepositoryContext): Promise<void>;
+  updateWebsite(id: string, input: UserWebsiteUpdate): Promise<void>;
 
   // =============================================================================
   // QUERY OPERATIONS

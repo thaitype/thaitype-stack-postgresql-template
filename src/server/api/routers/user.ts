@@ -89,7 +89,6 @@ export const userRouter = createTRPCRouter({
             bio: userData.bio,
             avatar: userData.avatar,
             website: userData.website,
-            isActive: userData.isActive,
             createdAt: userData.createdAt,
             updatedAt: userData.updatedAt,
           },
@@ -122,7 +121,7 @@ export const userRouter = createTRPCRouter({
         const user = ctx.user;
         const userService = ctx.container.userService;
 
-        const updatedUser = await userService.updateUserProfile(user.id, input, { operatedBy: user.id });
+        const updatedUser = await userService.updateUserProfile(user.id, input);
 
         if (!updatedUser) {
           throw new TRPCError({
@@ -146,7 +145,6 @@ export const userRouter = createTRPCRouter({
             bio: updatedUser.bio,
             avatar: updatedUser.avatar,
             website: updatedUser.website,
-            isActive: updatedUser.isActive,
             createdAt: updatedUser.createdAt,
             updatedAt: updatedUser.updatedAt,
           },

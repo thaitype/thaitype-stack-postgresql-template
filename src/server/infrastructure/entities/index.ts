@@ -1,21 +1,19 @@
-import type { AuditableDocument } from 'monguard';
-import type { ObjectId } from 'mongodb';
+/**
+ * Entity definitions using Drizzle schema types
+ * 
+ * This file now re-exports the database schema types as entities.
+ * This maintains backward compatibility while using Drizzle as the source of truth.
+ */
 
-export interface DbUserEntity extends AuditableDocument {
-  email: string;
-  name: string;
-  roles: ('admin')[];
-  // Better Auth additional fields
-  bio?: string;
-  avatar?: string;
-  website?: string;
-  isActive?: boolean; // Derived from deletedAt (optional for compatibility)
-}
+// Re-export database schema types as entity types
+export type {
+  DbUserEntity,
+  DbUserInsert,
+  DbUserUpdate,
+  DbTodoEntity,
+  DbTodoInsert,
+  DbTodoUpdate,
+} from '../db/schema';
 
-export interface DbTodoEntity extends AuditableDocument {
-  _id: ObjectId;
-  title: string;
-  description?: string;
-  completed: boolean;
-  userId: ObjectId;
-}
+// Re-export domain model types for service layer
+export type { User, Todo } from '../db/schema';

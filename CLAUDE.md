@@ -21,7 +21,7 @@ This is a Next.js 15 application built with the T3 Stack pattern, implementing a
 ### Tech Stack
 - **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
-- **Database**: MongoDB with Monguard for audit logging
+- **Database**: PostgreSQL with Drizzle ORM
 - **API**: tRPC for type-safe APIs
 - **Authentication**: Better Auth
 - **Validation**: Zod schemas
@@ -44,18 +44,18 @@ The codebase implements a sophisticated entity-based repository architecture wit
 **Repository Layer (Database-Specific)**:
 - Located in `src/server/infrastructure/repositories/`
 - Implements `src/server/domain/repositories/` interfaces
-- Handles string-to-ObjectId conversion via Zod schemas
-- Contains all MongoDB-specific operations
-- Extends `BaseMongoRepository` for common functionality
+- Handles string-to-UUID conversion via Zod schemas
+- Contains all PostgreSQL-specific operations
+- Extends `BaseDrizzleRepository` for common functionality
 
 **Domain Models**:
 - `src/server/domain/models/` - Domain interfaces (strings)
-- `src/server/infrastructure/entities/` - Database entities (ObjectIds)
+- `src/server/infrastructure/db/schema/` - Database schemas (UUIDs)
 
 #### Type Safety Strategy
 - All repository types derive from database entities using TypeScript utility types
 - Dedicated methods instead of generic update operations
-- Runtime validation with Zod schemas that auto-convert strings to ObjectIds
+- Runtime validation with Zod schemas that auto-convert strings to UUIDs
 - Schema-type alignment using `matches<T>()` utility
 
 ### Directory Structure
@@ -93,33 +93,33 @@ src/
 ### Important Development Rules
 
 #### Repository Pattern Rules
-1. **Service Layer Database Independence**: Services MUST work with domain types (strings), never ObjectId
-2. **No MongoDB in Services**: NEVER import or use `ObjectId` from 'mongodb' in service layer
+1. **Service Layer Database Independence**: Services MUST work with domain types (strings), never UUID objects
+2. **No Database Types in Services**: NEVER import or use database-specific types in service layer
 3. **Repository Interface Types**: Repository interfaces accept domain types, implementations handle conversion
 4. **Dedicated Methods**: Use specific methods like `updateBasicInfo()` instead of generic `update()`
 5. **Schema Validation**: All repository inputs validated with Zod schemas using `matches<T>()`
 
 #### Type Derivation Rules
-- Database entities are single source of truth in `~/infrastructure/entities`
+- Database schemas are single source of truth in `~/infrastructure/db/schema/`
 - Repository types MUST derive from entities using utility types: `Omit<>`, `Pick<>`, `Partial<>`
 - Use naming convention: `EntityCreateData`, `EntityFieldUpdate`, `EntityFieldPartialUpdate`
-- Prefix database entities with `Db` (e.g., `DbUserEntity`)
+- Database entity types inferred from Drizzle schemas
 
 #### Error Handling
 - Repository operations wrapped in try-catch with structured logging
-- Use domain-specific errors from `~/server/lib/errors/domain-errors`
+- Use domain-specific errors from `~/server/lib/errors/`
 - Include operation context in all log statements
 
 ### Authentication & Context
 - Uses Better Auth for authentication
-- Repository operations require `RepositoryContext` with `operatedBy` field
-- Monguard provides automatic audit logging for data changes
-- User context resolution handled in `BaseMongoRepository`
+- Simplified repository operations without audit overhead
+- Automatic timestamp management via Drizzle ORM
+- Clean PostgreSQL operations with type safety
 
 ### Logging & Observability
 - Pino logger with structured logging throughout
 - OpenTelemetry auto-instrumentation enabled
-- Audit logging via Monguard with delta tracking
+- Simple, direct database operations
 - Log levels: error, warn, info with operation context
 
-Refer to `docs/entity-architecture.md` for comprehensive details on the repository pattern implementation.
+Refer to `docs/repo-architecture.md` for comprehensive details on the repository pattern implementation.
