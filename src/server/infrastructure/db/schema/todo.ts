@@ -6,7 +6,7 @@ import { user } from './user';
 /**
  * Todos table schema with minimal fields
  */
-export const todos = pgTable('todos', {
+export const todos = pgTable('todo', {
   ...baseFields,
   
   title: varchar('title', { length: 200 }).notNull(),
