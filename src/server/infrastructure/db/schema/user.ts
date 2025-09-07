@@ -6,14 +6,6 @@ import { baseFields, type BaseFields } from './base';
  * Roles are now normalized in separate roles/userRoles tables
  */
 export const user = pgTable('user', {
-  /**
-   * Using text for ID field due to Better Auth integration
-   * Better Auth currently uses string IDs instead of UUIDs
-   * See: https://www.better-auth.com/docs/concepts/database?utm_source=chatgpt.com#id-generation
-   */
-  // id: text("id").primaryKey(),
-  // createdAt: baseFields.createdAt,
-  // updatedAt: baseFields.updatedAt,
   ...baseFields,
   // Core fields required by Better Auth
   name: text("name").notNull(),
@@ -24,12 +16,6 @@ export const user = pgTable('user', {
   bio: text("bio"),
   avatar: text("avatar"),
   website: text("website"),
-  // email: varchar('email', { length: 255 }).notNull().unique(),
-  // name: varchar('name', { length: 255 }).notNull(),
-  // bio: text('bio'),
-  // avatar: text('avatar'),
-  // website: text('website'),
-  // isActive: boolean('is_active').notNull().default(true),
 });
 
 /**

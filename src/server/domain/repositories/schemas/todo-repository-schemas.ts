@@ -55,7 +55,7 @@ type RepoTodoDescriptionUpdateData = Pick<DbTodoEntity, 'description'>;
 export const RepoTodoCreateSchema = matches<RepoTodoCreateData>()(
   z.object({
     title: commonValidation.nonEmptyString.max(200, 'Title too long'),
-    description: z.string().max(1000, 'Description too long').nullable(),
+    description: z.string().max(1000, 'Description too long').nullable().optional().transform(val => val ?? null),
     userId: z.string().uuid('Invalid user ID format'),
     completed: z.boolean().default(false),
   })
