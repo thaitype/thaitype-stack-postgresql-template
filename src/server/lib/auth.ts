@@ -33,15 +33,6 @@ async function createAuthInstance() {
     },
     user: {
       additionalFields: {
-        // Additional fields for Monguard compatibility
-        roles: {
-          type: 'string[]',
-          required: false,
-          defaultValue: ['admin'],
-          input: true, // Allow roles to be set programmatically
-        },
-        // Better Auth does not support ObjectId types directly,
-        // Monguard auto-fields (managed by hooks)
       },
     },
     databaseHooks: {
