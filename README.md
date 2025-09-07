@@ -275,7 +275,7 @@ pnpm format:write     # Apply Prettier formatting
 
 ## 🏛️ Design Patterns
 
-This template follows enterprise-grade design patterns documented in [`docs/entity-architecture.md`](docs/entity-architecture.md).
+This template follows enterprise-grade design patterns documented in [`docs/repo-architecture.md`](docs/repo-architecture.md).
 
 ### Core Principles
 
@@ -485,7 +485,7 @@ docker run -p 3000:3000 todo-app
 
 ## 📚 Documentation
 
-- **[Entity Architecture Guide](docs/entity-architecture.md)** - Repository pattern details
+- **[Entity Architecture Guide](docs/repo-architecture.md)** - Repository pattern details
 - **[CLAUDE.md](CLAUDE.md)** - AI development guidelines
 - **[API Documentation](#)** - tRPC endpoint reference (generated)
 

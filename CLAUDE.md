@@ -122,4 +122,4 @@ src/
 - Simple, direct database operations
 - Log levels: error, warn, info with operation context
 
-Refer to `docs/entity-architecture.md` for comprehensive details on the repository pattern implementation.
+Refer to `docs/repo-architecture.md` for comprehensive details on the repository pattern implementation.
