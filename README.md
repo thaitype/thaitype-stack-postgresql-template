@@ -74,7 +74,8 @@ src/
 ### Prerequisites
 - **Node.js 18+** 
 - **pnpm** (recommended) or npm
-- **PostgreSQL** instance (local or cloud)
+- **Docker & Docker Compose** (recommended for local development)
+- **PostgreSQL** instance (local, cloud, or via Docker)
 
 ### 1. Clone and Install
 ```bash
@@ -83,24 +84,53 @@ cd my-todo-app
 pnpm install
 ```
 
-### 2. Environment Setup
-```bash
-cp .env.example .env
-```
+### 2. Choose Development Environment
 
-Configure your `.env` file:
-```env
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/todoapp"
+#### Option A: Docker Development (Recommended)
 
-# Authentication
-BETTER_AUTH_SECRET="your-secret-key-here"
-NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000/api/auth"
+1. **Start Services**
+   ```bash
+   # Start PostgreSQL and Drizzle Gateway containers
+   docker-compose up -d
+   ```
 
-# App Configuration  
-NODE_ENV="development"
-PORT="3000"
-```
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   The `.env.example` is pre-configured for Docker development:
+   ```env
+   # Database (connects to Docker container via localhost port mapping)
+   DATABASE_URL="postgresql://devuser:devpass@localhost:5432/devdb"
+   
+   # Authentication
+   BETTER_AUTH_SECRET="your-secret-key-change-in-production"
+   NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+   
+   # App Configuration  
+   NODE_ENV="development"
+   PORT="3000"
+   ```
+
+#### Option B: Local PostgreSQL
+
+If you prefer to use a local PostgreSQL installation:
+
+1. **Create Database**
+   ```bash
+   createdb devdb
+   ```
+
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Update your `.env` file with your local PostgreSQL credentials:
+   ```env
+   DATABASE_URL="postgresql://your-username:your-password@localhost:5432/devdb"
+   ```
 
 ### 3. Database Setup
 ```bash
@@ -149,12 +179,37 @@ pnpm db:push
 pnpm db:seed
 ```
 
-### First Time Setup
+### Docker Development Setup
 
-1. **Create PostgreSQL Database**
+#### Starting the Stack
+```bash
+# Start all services (PostgreSQL + Drizzle Gateway)
+docker-compose up -d
+
+# View service status
+docker-compose ps
+
+# View logs
+docker-compose logs postgres
+docker-compose logs drizzle-gateway
+```
+
+#### Stopping the Stack
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (WARNING: destroys all data)
+docker-compose down -v
+```
+
+### First Time Setup (Any Environment)
+
+1. **Database Setup**
+   With Docker, the database is automatically created. For local PostgreSQL:
    ```bash
    # Using psql (if PostgreSQL is installed locally)
-   createdb todoapp
+   createdb devdb
    
    # Or connect to your cloud database provider
    # Update DATABASE_URL in .env with your connection string
@@ -180,15 +235,19 @@ pnpm db:seed
 Running `pnpm db:seed` creates:
 
 - **2 Roles**: `admin`, `user`  
-- **2 Users**: 
-  - `john@example.com` (User role)
-  - `admin@example.com` (Admin + User roles)
-- **5 Sample Todos**: Mix of completed and pending tasks
-- **Role Assignments**: Users connected to roles via junction table
 
 ### Database Management
 
 #### View Database
+
+**With Docker (Recommended)**:
+```bash
+# Drizzle Gateway is automatically available via Docker
+# Opens at http://localhost:4983
+open http://localhost:4983
+```
+
+**Without Docker**:
 ```bash
 # Open Drizzle Studio - visual database browser
 pnpm db:studio
@@ -225,8 +284,16 @@ pnpm db:seed
 ```
 
 #### Database Connection Errors
+
+**Docker Environment**:
+1. Check if Docker containers are running: `docker-compose ps`
+2. Restart services: `docker-compose restart postgres`
+3. Check container logs: `docker-compose logs postgres`
+4. Verify your `.env` uses: `postgresql://devuser:devpass@localhost:5432/devdb`
+
+**Local PostgreSQL**:
 1. Check your `DATABASE_URL` in `.env`
-2. Ensure PostgreSQL is running
+2. Ensure PostgreSQL service is running
 3. Verify database exists and credentials are correct
 
 #### Migration Conflicts
@@ -240,10 +307,23 @@ pnpm db:seed
 
 #### Environment Variables Not Loaded
 The seed script automatically loads `.env` file. Ensure your `.env` contains:
+
+**Docker Development**:
 ```env
 NODE_ENV=development
-DATABASE_URL=postgresql://username:password@localhost:5432/dbname
+DATABASE_URL=postgresql://devuser:devpass@localhost:5432/devdb
 ```
+
+**Local PostgreSQL**:
+```env
+NODE_ENV=development
+DATABASE_URL=postgresql://your-username:your-password@localhost:5432/devdb
+```
+
+#### Docker Networking Notes
+- **App Connection**: Uses `localhost:5432` (host machine to container port mapping)
+- **Drizzle Gateway Connection**: Uses `postgres:5432` (container-to-container networking)
+- **Credentials**: Both use `devuser:devpass` for database `devdb`
 
 ## 📋 Development Commands
 
